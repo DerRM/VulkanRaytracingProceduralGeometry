@@ -571,7 +571,7 @@ const char kClosestHitAABBShaderSource[] =
             Ray shadowRay = { hitPosition, normalize(params.lightPosition.xyz - hitPosition) };
             bool shadowRayHit = traceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
-/*
+
             vec4 reflectedColor = vec4(0.0, 0.0, 0.0, 0.0);
             if (material.reflectanceCoef > 0.001) {
                 Ray reflectionRay = { hitPosition, reflect(gl_WorldRayDirectionNV, normal) };
@@ -580,9 +580,9 @@ const char kClosestHitAABBShaderSource[] =
                 vec3 fresnelR = fresnelReflectanceSchlick(gl_WorldRayDirectionNV, normal, material.albedo.xyz);
                 reflectedColor = material.reflectanceCoef * vec4(fresnelR, 1.0) * reflectionColor;
             }
-*/
+
             vec4 phongColor = calculatePhongLighting(material.albedo, normal, shadowRayHit, material.diffuseCoef, material.specularCoef, material.specularPower);
-            vec4 color = phongColor/* + reflectedColor*/;
+            vec4 color = phongColor + reflectedColor;
 
             float t = gl_RayTmaxNV;
             color = mix(color, kBackgroundColor, 1.0 - exp(-0.000002 * t * t * t));
@@ -1751,7 +1751,7 @@ VkPipeline CRayTracing::createPipeline(VkPipelineLayout pipelineLayout) {
 
     VkRayTracingPipelineCreateInfoNV raytracingPipelineInfo = {};
     raytracingPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_NV;
-    raytracingPipelineInfo.maxRecursionDepth = 1;
+    raytracingPipelineInfo.maxRecursionDepth = 3;
     raytracingPipelineInfo.stageCount = static_cast<uint32_t>(m_shaderStages.size());
     raytracingPipelineInfo.pStages = m_shaderStages.data();
     raytracingPipelineInfo.groupCount = static_cast<uint32_t>(m_shaderGroups.size());
