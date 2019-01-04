@@ -567,10 +567,9 @@ const char kClosestHitAABBShaderSource[] =
 
         void main() {
             vec3 hitPosition = hitWorldPosition();
-/*
+
             Ray shadowRay = { hitPosition, normalize(params.lightPosition.xyz - hitPosition) };
             bool shadowRayHit = traceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
-*/
 
             vec4 reflectedColor = vec4(0.0, 0.0, 0.0, 0.0);
             if (material.reflectanceCoef > 0.001) {
@@ -581,7 +580,7 @@ const char kClosestHitAABBShaderSource[] =
                 reflectedColor = material.reflectanceCoef * vec4(fresnelR, 1.0) * reflectionColor;
             }
 
-            vec4 phongColor = calculatePhongLighting(material.albedo, normal, /*shadowRayHit*/ false, material.diffuseCoef, material.specularCoef, material.specularPower);
+            vec4 phongColor = calculatePhongLighting(material.albedo, normal, shadowRayHit, material.diffuseCoef, material.specularCoef, material.specularPower);
             vec4 color = phongColor + reflectedColor;
 
             float t = gl_RayTmaxNV;
@@ -1001,8 +1000,8 @@ Ray getRayInAABBPrimitiveLocalSpace() {
 
 bool solveQuadraticEqn(float a, float b, float c, out float x0, out float x1) {
     float discr = b * b - 4.0 * a * c;
-    if (discr < 0.0) return false;
-    else if (discr == 0.0) x0 = x1 = -0.5 * b / a;
+    if (discr < 0) return false;
+    else if (discr == 0) x0 = x1 = -0.5 * b / a;
     else {
         float q = (b > 0.0) ?
             -0.5 * (b + sqrt(discr)) :
@@ -1038,10 +1037,10 @@ bool raySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, 
 }
 
 float calculateMetaballPotential(in vec3 position, in Metaball blob) {
-    float distance = length(position - blob.center);
+    float dist = length(position - blob.center);
 
-    if (distance <= blob.radius) {
-        float d = distance;
+    if (dist <= blob.radius) {
+        float d = dist;
 
         d = blob.radius - d;
 
@@ -1116,7 +1115,7 @@ void findIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout
 
 bool rayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime) {
     Metaball blobs[3];
-    initializeAnimatedMetaballs(blobs, elapsedTime, 12.0f);
+    initializeAnimatedMetaballs(blobs, elapsedTime, 12.0);
 
     float tmin, tmax;
     uint activeMetaballs = 0;
@@ -1129,19 +1128,15 @@ bool rayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 
     while (iStep++ < maxSteps) {
         vec3 position = ray.origin + t * ray.direction;
-        float fieldPotentials[3];
         float sumFieldPotential = 0;
 
         for (uint j = 0; j < 3; j++) {
-            fieldPotentials[j] = calculateMetaballPotential(position, blobs[j]);
-            sumFieldPotential += fieldPotentials[j];
+            sumFieldPotential += calculateMetaballPotential(position, blobs[j]);
         }
 
-        const float kThreshold = 0.25;
-
-        if (sumFieldPotential >= kThreshold) {
+        if (sumFieldPotential >= 0.25) {
             vec3 normal = calculateMetaballsNormal(position, blobs, activeMetaballs);
-            if (isAValidHit(ray, t, -normal)) {
+            if (isAValidHit(ray, t, normal)) {
                 thit = t;
                 attr.normal = normal;
                 return true;
@@ -1168,7 +1163,6 @@ void main() {
 
     float thit;
     ProceduralPrimitiveAttributes attr;
-
 
     if (rayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, params.elapsedTime)) {
         PrimitiveInstancePerFrameBuffer aabbAttribute = aabbPrimitiveAttribs[aabbCB.instanceIndex];
@@ -2380,7 +2374,6 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     }
-
 
     {
         VkAccelerationStructureInfoNV asInfo = {};
