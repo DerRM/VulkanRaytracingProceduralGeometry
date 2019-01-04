@@ -567,10 +567,10 @@ const char kClosestHitAABBShaderSource[] =
 
         void main() {
             vec3 hitPosition = hitWorldPosition();
-
+/*
             Ray shadowRay = { hitPosition, normalize(params.lightPosition.xyz - hitPosition) };
             bool shadowRayHit = traceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
-
+*/
 
             vec4 reflectedColor = vec4(0.0, 0.0, 0.0, 0.0);
             if (material.reflectanceCoef > 0.001) {
@@ -581,7 +581,7 @@ const char kClosestHitAABBShaderSource[] =
                 reflectedColor = material.reflectanceCoef * vec4(fresnelR, 1.0) * reflectionColor;
             }
 
-            vec4 phongColor = calculatePhongLighting(material.albedo, normal, shadowRayHit, material.diffuseCoef, material.specularCoef, material.specularPower);
+            vec4 phongColor = calculatePhongLighting(material.albedo, normal, /*shadowRayHit*/ false, material.diffuseCoef, material.specularCoef, material.specularPower);
             vec4 color = phongColor + reflectedColor;
 
             float t = gl_RayTmaxNV;
@@ -705,20 +705,6 @@ vec3 hitAttribute(vec3 vertexAttribute[3], vec3 barycentrics) {
         barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
 }
 
-Ray generateCameraRay(uvec2 index, in vec3 cameraPosition, in mat4x4 projectionToWorld) {
-    vec2 xy = index + 0.5;
-    vec2 screenPos = xy / gl_LaunchIDNV.xy * 2.0 - 1.0;
-
-    screenPos.y = -screenPos.y;
-
-    vec4 world = projectionToWorld * vec4(screenPos, 0.0, 1.0);
-
-    Ray ray;
-    ray.origin = vec3(cameraPosition);
-    ray.direction = normalize(world.xyz - ray.origin);
-    return ray;
-}
-
 Ray getRayInAABBPrimitiveLocalSpace() {
     PrimitiveInstancePerFrameBuffer attr = aabbPrimitiveAttribs[aabbCB.instanceIndex];
 
@@ -728,14 +714,9 @@ Ray getRayInAABBPrimitiveLocalSpace() {
     return ray;
 }
 
-vec3 fresnelReflectanceSchlick(in vec3 I, in vec3 N, in vec3 f0) {
-    float cosi = clamp(dot(-I, N), 0.0, 1.0);
-    return f0 + (1 - f0) * pow(1 - cosi, 5);
-}
-
 bool solveQuadraticEqn(float a, float b, float c, out float x0, out float x1) {
     float discr = b * b - 4.0 * a * c;
-    if (discr < 0.0) return false;
+    if (discr < 0) return false;
     else if (discr == 0.0) x0 = x1 = -0.5 * b / a;
     else {
         float q = (b > 0.0) ?
@@ -770,7 +751,7 @@ bool raySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out P
 
     tmax = t1;
 
-    if (t0 < gl_RayTmaxNV) {
+    if (t0 < gl_RayTminNV) {
         if (t1 < gl_RayTminNV) return false;
 
         attr.normal = calculateNormalForARaySphereHit(ray, t1, center);
@@ -794,14 +775,6 @@ bool raySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out P
     }
 
     return false;
-}
-
-bool raySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out ProceduralPrimitiveAttributes attr, in vec3 center) {
-    return raySphereIntersectionTest(ray, thit, tmax, attr, center, 1.0);
-}
-
-bool raySphereIntersectionTest(in Ray ray, out float thit, out float tmax, out ProceduralPrimitiveAttributes attr) {
-    return raySphereIntersectionTest(ray, thit, tmax, attr, vec3(0.0, 0.0, 0.0), 1.0);
 }
 
 bool raySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr) {
@@ -885,7 +858,6 @@ bool rayAnalyticGeometryIntersectionTest(in Ray ray, in uint analyticPrimitiveTy
         vec3(-1.0, -1.0, -1.0),
         vec3(1.0, 1.0, 1.0)
     };
-    float tmax;
 
     switch (analyticPrimitiveType) {
         case 0: return rayAABBIntersectionTest(ray, aabb, thit, attr);
@@ -1065,14 +1037,6 @@ bool raySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, 
     return true;
 }
 
-bool raySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, in vec3 center) {
-    return raySolidSphereIntersectionTest(ray, thit, tmax, center, 1.0);
-}
-
-bool raySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax) {
-    return raySolidSphereIntersectionTest(ray, thit, tmax, vec3(0.0, 0.0, 0.0), 1.0);
-}
-
 float calculateMetaballPotential(in vec3 position, in Metaball blob) {
     float distance = length(position - blob.center);
 
@@ -1205,6 +1169,7 @@ void main() {
     float thit;
     ProceduralPrimitiveAttributes attr;
 
+
     if (rayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, params.elapsedTime)) {
         PrimitiveInstancePerFrameBuffer aabbAttribute = aabbPrimitiveAttribs[aabbCB.instanceIndex];
         attr.normal = mat3x3(aabbAttribute.localSpaceToBottomLevelAS) * attr.normal;
@@ -1213,7 +1178,13 @@ void main() {
         hitNormal = attr.normal;
         reportIntersectionNV(thit, 0);
     }
-   // else {if (primitiveType == 0) {hitNormal = attr.normal; reportIntersectionNV(0.0,0);}}
+
+   // else {
+    //if (primitiveType == 0) {
+    //    hitNormal = vec3(0.0,0.0,0.0);//attr.normal;
+    //    reportIntersectionNV(0.0,0);
+    //}
+    //}
 }
 
 )";
@@ -1318,11 +1289,6 @@ Ray generateCameraRay(uvec2 index, in vec3 cameraPosition, in mat4x4 projectionT
     ray.origin = vec3(cameraPosition);
     ray.direction = normalize(world.xyz - ray.origin);
     return ray;
-}
-
-vec3 fresnelReflectanceSchlick(in vec3 I, in vec3 N, in vec3 f0) {
-    float cosi = clamp(dot(-I, N), 0.0, 1.0);
-    return f0 + (1 - f0) * pow(1 - cosi, 5);
 }
 
 Ray getRayInAABBPrimitiveLocalSpace() {
@@ -2240,6 +2206,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
 
     std::vector<VkGeometryNV> aabbGeometries;
+    std::vector<BottomLevelAccelerationStructure> accStructs;
 
     for (size_t index = 0; index < m_aabbBuffers.size(); ++index) {
         VkGeometryNV aabbGeometry = {};
@@ -2255,9 +2222,10 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         aabbGeometry.flags = 0;
 
         aabbGeometries.push_back(aabbGeometry);
+        BottomLevelAccelerationStructure aabbAccStruct = createBottomLevelAccelerationStructure(&aabbGeometry, 1);
+        accStructs.push_back(aabbAccStruct);
     }
 
-    BottomLevelAccelerationStructure aabbAccStruct = createBottomLevelAccelerationStructure(aabbGeometries.data(), aabbGeometries.size());
 
     glm::uvec3 const kNumAabb = glm::uvec3(700, 1, 700);
     glm::vec3 const vWidth = glm::vec3(
@@ -2302,7 +2270,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         memcpy(aabbGeomInstance.transform, &aabbTransform, sizeof(aabbTransform));
         aabbGeomInstance.mask = 1;
         aabbGeomInstance.instanceOffset = 1 + index;
-        aabbGeomInstance.accelerationStructureHandle = aabbAccStruct.gpuHandle;
+        aabbGeomInstance.accelerationStructureHandle = accStructs[index].gpuHandle;
         instances.push_back(aabbGeomInstance);
     }
 
@@ -2357,7 +2325,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
     VkDeviceSize bottomTriangleAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
 
-    accMemReqInfo.accelerationStructure = aabbAccStruct.handle;
+    accMemReqInfo.accelerationStructure = accStructs[0].handle;
     vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
 
     VkDeviceSize bottomAabbAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
@@ -2401,16 +2369,17 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
+    for (size_t index = 0; index < accStructs.size(); ++index)
     {
         VkAccelerationStructureInfoNV asInfo = {};
         asInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-        asInfo.geometryCount = aabbGeometries.size();
-        asInfo.pGeometries = aabbGeometries.data();
-        vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, aabbAccStruct.handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
-    }
+        asInfo.geometryCount = 1;//aabbGeometries.size();
+        asInfo.pGeometries = &aabbGeometries[index];
+        vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, accStructs[index].handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
 
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+    }
 
 
     {
