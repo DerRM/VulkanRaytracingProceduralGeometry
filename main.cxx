@@ -44,11 +44,12 @@ uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRe
     return memoryType;
 }
 
+#ifdef _DEBUG
 VkBool32 debug_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT                  messageTypes,
+        VkDebugUtilsMessageTypeFlagsEXT                  /*messageTypes*/,
         const VkDebugUtilsMessengerCallbackDataEXT*      pCallbackData,
-        void*                                            pUserData)
+        void*                                            /*pUserData*/)
 {
     std::string prefix;
 
@@ -65,62 +66,7 @@ VkBool32 debug_callback(
 
     return VK_FALSE;
 }
-
-
-
-VKAPI_ATTR VkBool32 VKAPI_CALL MessageCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType,
-    uint64_t srcObject, size_t location, int32_t msgCode, const char* pLayerPrefix, const char* pMsg, void* pUserData)
-{
-    std::stringstream debugMessage;
-
-    std::string flagText = "";
-    if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
-    {
-        flagText = "Info";
-    }
-    if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-    {
-        flagText = "Warning";
-    }
-    if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
-    {
-        flagText = "PerfWarning";
-    }
-    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-    {
-        flagText = "Error";
-    }
-    if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
-    {
-        flagText = "Debug";
-    }
-
-    debugMessage << flagText << " [" << pLayerPrefix << "] Code " << msgCode << " : " << pMsg;
-    std::cout << debugMessage.str() << "\n";
-    fflush(stdout);
-    return VK_FALSE;
-}
-
-void CreateDebugReportCallback(VkInstance instance, VkDebugReportCallbackEXT& debugReportCallback)
-{
-    const VkDebugReportFlagsEXT flags = VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_ERROR_BIT_EXT |
-        VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
-
-    VkDebugReportCallbackCreateInfoEXT info;
-    info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-    info.pNext = nullptr;
-    info.flags = flags;
-    info.pfnCallback = MessageCallback;
-    info.pUserData = nullptr;
-
-    PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
-    vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
-
-    const VkResult code = vkCreateDebugReportCallbackEXT(instance, &info, nullptr, &debugReportCallback);
-    if (code != VK_SUCCESS) {
-        printf("vkCreateDebugReportCallbackEXT failed\n");
-    }
-}
+#endif
 
 int main() {
 
@@ -145,12 +91,16 @@ int main() {
     std::vector<const char*> enabledExtensions;
     enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
     enabledExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#ifdef _DEBUG
     enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
     //enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     enabledExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
     std::vector<const char*> enableValidationLayers;
+#ifdef _DEBUG
     enableValidationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
+#endif
 
     VkInstanceCreateInfo instanceInfo = {};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -164,7 +114,7 @@ int main() {
     VkInstance instance;
     vkCreateInstance(&instanceInfo, nullptr, &instance);
 
-
+#ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
     debugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
@@ -175,6 +125,7 @@ int main() {
 
     VkDebugUtilsMessengerEXT debugMessenger;
     pfnCreateDebugUtilsMessengerEXT(instance, &debugMessengerInfo, nullptr, &debugMessenger);
+#endif
 
     VkPhysicalDevice gpu;
 
