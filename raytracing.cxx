@@ -1088,7 +1088,7 @@ void initializeAnimatedMetaballs(out Metaball blobs[3], in float elapsedTime, in
 
     for (uint j = 0; j < 3; j++) {
         blobs[j].center = mix(keyFrameCenters[j][0], keyFrameCenters[j][1], tAnimate);
-        blobs[j].radius = radii[j];
+        blobs[j].radius = 3.8 * radii[j];
     }
 }
 
@@ -1123,7 +1123,7 @@ bool rayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrim
 
     uint maxSteps = 128;
     float t = tmin;
-    float minTStep = (tmax - tmin) / (maxSteps / 1);
+    float minTStep = (tmax - tmin) / maxSteps;
     uint iStep = 0;
 
     while (iStep++ < maxSteps) {
