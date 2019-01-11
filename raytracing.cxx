@@ -685,7 +685,7 @@ bool isCulled(in Ray ray, in vec3 hitSurfaceNormal) {
 }
 
 bool isAValidHit(in Ray ray, in float thit, in vec3 hitSurfaceNormal) {
-    return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV);// && isCulled(ray, hitSurfaceNormal);
+    return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV) && !isCulled(ray, hitSurfaceNormal);
 }
 
 void swap(inout float val0, inout float val1) {
@@ -976,7 +976,7 @@ bool isCulled(in Ray ray, in vec3 hitSurfaceNormal) {
 }
 
 bool isAValidHit(in Ray ray, in float thit, in vec3 hitSurfaceNormal) {
-   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV);// && isCulled(ray, hitSurfaceNormal);
+   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV) && !isCulled(ray, hitSurfaceNormal);
 }
 
 void swap(inout float val0, inout float val1) {
@@ -1252,7 +1252,7 @@ bool isCulled(in Ray ray, in vec3 hitSurfaceNormal) {
 }
 
 bool isAValidHit(in Ray ray, in float thit, in vec3 hitSurfaceNormal) {
-   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV);// && isCulled(ray, hitSurfaceNormal);
+   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV) && !isCulled(ray, hitSurfaceNormal);
 }
 
 void swap(inout float val0, inout float val1) {
