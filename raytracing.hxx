@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <vector>
 
-#include "shader.hxx"
+//#include "shader.hxx"
 #include "vulkanhelper.hxx"
 #include "raytracingscenedefines.hxx"
 
@@ -39,7 +39,7 @@ public:
     void initScene();
     VkPipeline createPipeline(VkPipelineLayout pipelineLayout);
     void createCommandBuffers();
-    void createShader(CShader::EShaderType type, std::string const& name, std::string const& shader_source);
+    void createShader(VkShaderStageFlagBits type, std::string const& name, std::string const& shader_source);
     void createShaderStages();
     //std::vector<VkRayTracingShaderGroupCreateInfoNV> const& createShaderGroups();
     void createSceneBuffer();
@@ -82,7 +82,7 @@ private:
     VkCommandPool m_commandPool;
     CVulkanHelper m_helper;
     VkPhysicalDeviceRayTracingPropertiesNV const& m_raytracingProperties;
-    std::vector<CShader> m_shaders;
+    //std::vector<CShader> m_shaders;
     std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages;
     std::vector<VkRayTracingShaderGroupCreateInfoNV> m_shaderGroups;
 
@@ -91,7 +91,7 @@ private:
     std::vector<VkRayTracingShaderGroupCreateInfoNV> m_hitShaderGroups;
 
 
-    VkShaderStageFlagBits shaderType2ShaderStage(CShader::EShaderType type);
+    //VkShaderStageFlagBits shaderType2ShaderStage(CShader::EShaderType type);
 
     VkPhysicalDeviceMemoryProperties m_gpuMemProps;
 
@@ -135,7 +135,7 @@ private:
     glm::vec4 m_at;
     glm::vec4 m_up;
 
-    bool m_animateCamera = true;
+    bool m_animateCamera = false;
     bool m_animateLight = false;
 };
 

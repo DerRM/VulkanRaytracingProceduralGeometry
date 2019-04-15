@@ -1,0 +1,292 @@
+#version 460 core
+#extension GL_NV_ray_tracing : require
+
+hitAttributeNV vec3 hitNormal;
+
+struct SceneConstantBuffer {
+   mat4x4 projectionToWorld;
+   vec4 cameraPosition;
+   vec4 lightPosition;
+   vec4 lightAmbientColor;
+   vec4 lightDiffuseColor;
+   float reflectance;
+   float elapsedTime;
+};
+
+struct PrimitiveInstancePerFrameBuffer {
+   mat4x4 localSpaceToBottomLevelAS;
+   mat4x4 bottomLevelASToLocalSpace;
+};
+
+struct PrimitiveConstantBuffer {
+   vec4 albedo;
+   float reflectanceCoef;
+   float diffuseCoef;
+   float specularCoef;
+   float specularPower;
+   float stepScale;
+
+   float padding[3];
+};
+
+struct PrimitiveInstanceConstantBuffer
+{
+   uint instanceIndex;
+   uint primitiveType; // Procedural primitive type
+
+   float padding[2];
+};
+
+struct ProceduralPrimitiveAttributes
+{
+   vec3 normal;
+};
+
+layout(set = 0, binding = 2, std140) uniform appData {
+   SceneConstantBuffer params;
+};
+
+layout(set = 0, binding = 5, std140) uniform instanceData {
+   PrimitiveInstancePerFrameBuffer aabbPrimitiveAttribs[10];
+};
+
+layout(shaderRecordNV) buffer inlineData {
+    PrimitiveConstantBuffer materialCB;
+    PrimitiveInstanceConstantBuffer aabbCB;
+};
+
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+};
+
+struct Metaball {
+    vec3 center;
+    float radius;
+};
+
+float calculateAnimationInterpolant(in float elapsedTime, in float cycleDuration) {
+    float curLinearCycleTime = mod(elapsedTime, cycleDuration) / cycleDuration;
+    curLinearCycleTime = (curLinearCycleTime <= 0.5) ? 2.0 * curLinearCycleTime : 1.0 - 2.0 * (curLinearCycleTime - 0.5);
+    return smoothstep(0.0, 1.0, curLinearCycleTime);
+}
+
+bool isInRange(in float val, in float minVal, in float maxVal) {
+    return (val >= minVal && val <= maxVal);
+}
+
+bool isCulled(in Ray ray, in vec3 hitSurfaceNormal) {
+   float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+
+   bool isCulled = (((gl_IncomingRayFlagsNV & gl_RayFlagsCullBackFacingTrianglesNV) != 0) && (rayDirectionNormalDot > 0))
+                   ||
+                   (((gl_IncomingRayFlagsNV & gl_RayFlagsCullFrontFacingTrianglesNV) != 0) && (rayDirectionNormalDot < 0));
+
+   return isCulled;
+}
+
+bool isAValidHit(in Ray ray, in float thit, in vec3 hitSurfaceNormal) {
+   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV) && !isCulled(ray, hitSurfaceNormal);
+}
+
+void swap(inout float val0, inout float val1) {
+    float tmp = val0;
+    val0 = val1;
+    val1 = tmp;
+}
+
+vec3 hitWorldPosition() {
+    return gl_WorldRayOriginNV + gl_RayTmaxNV * gl_WorldRayDirectionNV;
+}
+
+Ray getRayInAABBPrimitiveLocalSpace() {
+    PrimitiveInstancePerFrameBuffer attr = aabbPrimitiveAttribs[aabbCB.instanceIndex];
+
+    Ray ray;
+    ray.origin = (attr.bottomLevelASToLocalSpace * vec4(gl_ObjectRayOriginNV, 1.0)).xyz;
+    ray.direction = (mat3x3(attr.bottomLevelASToLocalSpace) * gl_ObjectRayDirectionNV);
+    return ray;
+}
+
+bool solveQuadraticEqn(float a, float b, float c, out float x0, out float x1) {
+    float discr = b * b - 4.0 * a * c;
+    if (discr < 0) return false;
+    else if (discr == 0) x0 = x1 = -0.5 * b / a;
+    else {
+        float q = (b > 0.0) ?
+            -0.5 * (b + sqrt(discr)) :
+            -0.5 * (b - sqrt(discr));
+        x0 = q / a;
+        x1 = c / q;
+    }
+
+    if (x0 > x1) swap(x0, x1);
+
+    return true;
+}
+
+bool solveRaySphereIntersectionEquation(in Ray ray, out float tmin, out float tmax, in vec3 center, in float radius) {
+    vec3 L = ray.origin - center;
+    float a = dot(ray.direction, ray.direction);
+    float b = 2.0 * dot(ray.direction, L);
+    float c = dot(L, L) - radius * radius;
+    return solveQuadraticEqn(a, b, c, tmin, tmax);
+}
+
+bool raySolidSphereIntersectionTest(in Ray ray, out float thit, out float tmax, in vec3 center, in float radius) {
+    float t0, t1;
+
+    if (!solveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) {
+        return false;
+    }
+
+    thit = max(t0, gl_RayTminNV);
+    tmax = min(t1, gl_RayTmaxNV);
+
+    return true;
+}
+
+float calculateMetaballPotential(in vec3 position, in Metaball blob) {
+    float dist = length(position - blob.center);
+
+    if (dist <= blob.radius) {
+        float d = dist;
+
+        d = blob.radius - d;
+
+        float r = blob.radius;
+
+        return 6.0 * (d * d * d * d * d) / (r * r * r * r * r)
+               - 15.0 * (d * d * d + d) / (r * r * r * r)
+               + 10.0 * (d * d * d) / (r * r * r);
+    }
+
+    return 0.0;
+}
+
+float calculateMetaballsPotential(in vec3 position, in Metaball blobs[3], in uint activeMetaballs) {
+    float sumFieldPotential = 0.0;
+
+    for (uint j = 0; j < 3; j++) {
+        sumFieldPotential += calculateMetaballPotential(position, blobs[j]);
+    }
+
+    return sumFieldPotential;
+}
+
+vec3 calculateMetaballsNormal(in vec3 position, in Metaball blobs[3], in uint activeMetaballs) {
+    float e = 0.5773 * 0.00001;
+    return normalize(vec3(
+        calculateMetaballsPotential(position + vec3(-e, 0.0, 0.0), blobs, activeMetaballs) -
+        calculateMetaballsPotential(position + vec3(e, 0.0, 0.0), blobs, activeMetaballs),
+        calculateMetaballsPotential(position + vec3(0.0, -e, 0.0), blobs, activeMetaballs) -
+        calculateMetaballsPotential(position + vec3(0.0, e, 0.0), blobs, activeMetaballs),
+        calculateMetaballsPotential(position + vec3(0.0, 0.0, -e), blobs, activeMetaballs) -
+        calculateMetaballsPotential(position + vec3(0.0, 0.0, e), blobs, activeMetaballs)));
+}
+
+void initializeAnimatedMetaballs(out Metaball blobs[3], in float elapsedTime, in float cycleDuration) {
+    vec3 keyFrameCenters[3][2] = {
+        { vec3(-0.3, -0.3, -0.4), vec3(0.3, -0.3, 0.0) },
+        { vec3(0.0, -0.2, 0.5), vec3(0.0, 0.4, 0.5) },
+        { vec3(0.4, 0.4, 0.4), vec3(-0.4, 0.2, -0.4) }
+    };
+
+    float radii[3] = { 0.45, 0.55, 0.45 };
+
+    float tAnimate = calculateAnimationInterpolant(elapsedTime, cycleDuration);
+
+    for (uint j = 0; j < 3; j++) {
+        blobs[j].center = mix(keyFrameCenters[j][0], keyFrameCenters[j][1], tAnimate);
+        blobs[j].radius = 3.8 * radii[j];
+    }
+}
+
+void findIntersectingMetaballs(in Ray ray, out float tmin, out float tmax, inout Metaball blobs[3], out uint activeMetaballs) {
+    tmin = (1.0 / 0.0);
+    tmax = -(1.0 / 0.0);
+
+    activeMetaballs = 0;
+
+    for (uint i = 0; i < 3; i++) {
+        float _thit, _tmax;
+
+        if (raySolidSphereIntersectionTest(ray, _thit, _tmax, blobs[i].center, blobs[i].radius)) {
+            tmin = min(_thit, tmin);
+            tmax = max(_tmax, tmax);
+
+            activeMetaballs = 3;
+        }
+    }
+
+    tmin = max(tmin, gl_RayTminNV);
+    tmax = min(tmax, gl_RayTmaxNV);
+}
+
+bool rayMetaballsIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime) {
+    Metaball blobs[3];
+    initializeAnimatedMetaballs(blobs, elapsedTime, 12.0);
+
+    float tmin, tmax;
+    uint activeMetaballs = 0;
+    findIntersectingMetaballs(ray, tmin, tmax, blobs, activeMetaballs);
+
+    uint maxSteps = 128;
+    float t = tmin;
+    float minTStep = (tmax - tmin) / maxSteps;
+    uint iStep = 0;
+
+    while (iStep++ < maxSteps) {
+        vec3 position = ray.origin + t * ray.direction;
+        float sumFieldPotential = 0;
+
+        for (uint j = 0; j < 3; j++) {
+            sumFieldPotential += calculateMetaballPotential(position, blobs[j]);
+        }
+
+        if (sumFieldPotential >= 0.25) {
+            vec3 normal = calculateMetaballsNormal(position, blobs, activeMetaballs);
+            if (isAValidHit(ray, t, normal)) {
+                thit = t;
+                attr.normal = normal;
+                return true;
+            }
+        }
+
+        t += minTStep;
+    }
+
+    return false;
+}
+
+bool rayVolumetricGeometryIntersectionTest(in Ray ray, in uint volumetricPrimitive, out float thit, out ProceduralPrimitiveAttributes attr, in float elapsedTime) {
+    switch (volumetricPrimitive) {
+        case 0: return rayMetaballsIntersectionTest(ray, thit, attr, elapsedTime);
+        default: return false;
+    }
+}
+
+void main() {
+
+    Ray localRay = getRayInAABBPrimitiveLocalSpace();
+    uint primitiveType = aabbCB.primitiveType;
+
+    float thit;
+    ProceduralPrimitiveAttributes attr;
+
+    if (rayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, params.elapsedTime)) {
+        PrimitiveInstancePerFrameBuffer aabbAttribute = aabbPrimitiveAttribs[aabbCB.instanceIndex];
+        attr.normal = mat3x3(aabbAttribute.localSpaceToBottomLevelAS) * attr.normal;
+        attr.normal = normalize(attr.normal * mat3x3(gl_ObjectToWorldNV));
+
+        hitNormal = attr.normal;
+        reportIntersectionNV(thit, 0);
+    }
+
+   // else {
+    //if (primitiveType == 0) {
+    //    hitNormal = vec3(0.0,0.0,0.0);//attr.normal;
+    //    reportIntersectionNV(0.0,0);
+    //}
+    //}
+}

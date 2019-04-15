@@ -1,0 +1,292 @@
+#version 460 core
+#extension GL_NV_ray_tracing : require
+
+hitAttributeNV vec3 hitNormal;
+
+struct PrimitiveInstancePerFrameBuffer {
+  mat4x4 localSpaceToBottomLevelAS;
+  mat4x4 bottomLevelASToLocalSpace;
+};
+
+struct PrimitiveConstantBuffer {
+  vec4 albedo;
+  float reflectanceCoef;
+  float diffuseCoef;
+  float specularCoef;
+  float specularPower;
+  float stepScale;
+
+  float padding[3];
+};
+
+struct PrimitiveInstanceConstantBuffer
+{
+  uint instanceIndex;
+  uint primitiveType; // Procedural primitive type
+
+  float padding[2];
+};
+
+struct ProceduralPrimitiveAttributes
+{
+    vec3 normal;
+};
+
+layout(set = 0, binding = 5, std140) uniform instanceData {
+  PrimitiveInstancePerFrameBuffer aabbPrimitiveAttribs[10];
+};
+
+layout(shaderRecordNV) buffer inlineData {
+   PrimitiveConstantBuffer materialCB;
+   PrimitiveInstanceConstantBuffer aabbCB;
+};
+
+struct Ray {
+    vec3 origin;
+    vec3 direction;
+};
+
+float calculateAnimationInterpolant(in float elapsedTime, in float cycleDuration) {
+    float curLinearCycleTime = mod(elapsedTime, cycleDuration) / cycleDuration;
+    curLinearCycleTime = (curLinearCycleTime <= 0.5) ? 2.0 * curLinearCycleTime : 1.0 - 2.0 * (curLinearCycleTime - 0.5);
+    return smoothstep(0.0, 1.0, curLinearCycleTime);
+}
+
+bool isInRange(in float val, in float minVal, in float maxVal) {
+   return (val >= minVal && val <= maxVal);
+}
+
+bool isCulled(in Ray ray, in vec3 hitSurfaceNormal) {
+   float rayDirectionNormalDot = dot(ray.direction, hitSurfaceNormal);
+
+   bool isCulled = (((gl_IncomingRayFlagsNV & gl_RayFlagsCullBackFacingTrianglesNV) != 0) && (rayDirectionNormalDot > 0))
+                   ||
+                   (((gl_IncomingRayFlagsNV & gl_RayFlagsCullFrontFacingTrianglesNV) != 0) && (rayDirectionNormalDot < 0));
+
+   return isCulled;
+}
+
+bool isAValidHit(in Ray ray, in float thit, in vec3 hitSurfaceNormal) {
+   return isInRange(thit, gl_RayTminNV, gl_RayTmaxNV) && !isCulled(ray, hitSurfaceNormal);
+}
+
+void swap(inout float val0, inout float val1) {
+    float tmp = val0;
+    val0 = val1;
+    val1 = tmp;
+}
+
+vec3 hitWorldPosition() {
+    return gl_WorldRayOriginNV + gl_RayTmaxNV * gl_WorldRayDirectionNV;
+}
+
+vec3 hitAttribute(vec3 vertexAttribute[3], vec3 barycentrics) {
+    return vertexAttribute[0] +
+        barycentrics.x * (vertexAttribute[1] - vertexAttribute[0]) +
+        barycentrics.y * (vertexAttribute[2] - vertexAttribute[0]);
+}
+
+Ray generateCameraRay(uvec2 index, in vec3 cameraPosition, in mat4x4 projectionToWorld) {
+    vec2 xy = index + 0.5;
+    vec2 screenPos = xy / gl_LaunchIDNV.xy * 2.0 - 1.0;
+
+    screenPos.y = -screenPos.y;
+
+    vec4 world = projectionToWorld * vec4(screenPos, 0.0, 1.0);
+
+    Ray ray;
+    ray.origin = vec3(cameraPosition);
+    ray.direction = normalize(world.xyz - ray.origin);
+    return ray;
+}
+
+Ray getRayInAABBPrimitiveLocalSpace() {
+   PrimitiveInstancePerFrameBuffer attr = aabbPrimitiveAttribs[aabbCB.instanceIndex];
+
+   Ray ray;
+   ray.origin = (attr.bottomLevelASToLocalSpace * vec4(gl_ObjectRayOriginNV, 1.0)).xyz;
+   ray.direction = (mat3x3(attr.bottomLevelASToLocalSpace) * gl_ObjectRayDirectionNV);
+   return ray;
+}
+
+float opS(float d1, float d2) {
+    return max(d1, -d2);
+}
+
+float opI(float d1, float d2) {
+    return max(d1, d2);
+}
+
+vec3 fmod(vec3 x, vec3 y) {
+    return x - y * trunc(x / y);
+}
+
+vec3 opRep(vec3 p, vec3 c) {
+    return fmod(p, c) - 0.5 * c;
+}
+
+vec3 opTwist(vec3 p) {
+    float c = cos(3.0 * p.y);
+    float s = sin(3.0 * p.y);
+    mat2x2 m = mat2x2(c, -s, s, c);
+    return vec3(p.xz * m, p.y);
+}
+
+float sdSphere(vec3 p, float s) {
+    return length(p) - s;
+}
+
+float sdBox(vec3 p, vec3 b) {
+    vec3 d = abs(p) - b;
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
+}
+
+float udRoundBox(vec3 p, vec3 b, float r) {
+    return length(max(abs(p) - b, 0.0)) - r;
+}
+
+float sdTorus(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length(q) - t.y;
+}
+
+float length_toPow2(vec3 p) {
+    return dot(p, p);
+}
+
+float length_toPowNegative8(vec2 p) {
+    p = p * p; p = p * p; p = p * p;
+    return pow(p.x + p.y, 1.0 / 8.0);
+}
+
+float sdCylinder(vec3 p, vec2 h) {
+    vec2 d = abs(vec2(length(p.xz), p.y)) - h;
+    return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+}
+
+float sdOctahedron(vec3 p, vec3 h) {
+    float d = 0.0;
+
+    d = dot(vec2(max(abs(p.x), abs(p.z)), abs(p.y)),
+            vec2(h.x, h.y));
+
+    return d - h.y * h.z;
+}
+
+float sdPyramid(vec3 p, vec3 h) {
+    float octa = sdOctahedron(p, h);
+
+    return opS(octa, p.y);
+}
+
+float sdTorus82(vec3 p, vec2 t) {
+    vec2 q = vec2(length(p.xz) - t.x, p.y);
+    return length_toPowNegative8(q) - t.y;
+}
+
+float sdFractalPyramid(in vec3 position, vec3 h, in float scale) {
+    float a = h.z * h.y / h.x;
+    vec3 v1 = vec3(0.0, h.z, 0.0);
+    vec3 v2 = vec3(-a, 0.0, a);
+    vec3 v3 = vec3(a, 0.0, -a);
+    vec3 v4 = vec3(a, 0.0, a);
+    vec3 v5 = vec3(-a, 0.0, -a);
+
+    int n = 0;
+    for (n = 0; n < 4; n++) {
+        float dist, d;
+        vec3 v;
+        v = v1; dist = length_toPow2(position - v1);
+        d = length_toPow2(position - v2); if (d < dist) { v = v2; dist = d; }
+        d = length_toPow2(position - v3); if (d < dist) { v = v3; dist = d; }
+        d = length_toPow2(position - v4); if (d < dist) { v = v4; dist = d; }
+        d = length_toPow2(position - v5); if (d < dist) { v = v5; dist = d; }
+
+        position = scale * position - v * (scale - 1.0);
+    }
+
+    float distance = sdPyramid(position, h);
+
+    return distance * pow(scale, float(-n));
+}
+
+float sdFractalPyramid(in vec3 position, vec3 h) {
+    return sdFractalPyramid(position, h, 2.0);
+}
+
+float getDistanceFromSignedDistancePrimitive(in vec3 position, in uint signedDistancePrimitive) {
+    switch(signedDistancePrimitive) {
+        case 0: return opI(sdSphere(opRep(position + 1.0, vec3(2.0 / 4.0)), 0.65 / 4.0), sdBox(position, vec3(1.0)));
+        case 1: return opS(opS(udRoundBox(position, vec3(0.75), 0.2), sdSphere(position, 1.20)), -sdSphere(position, 1.32));
+        case 2: return sdTorus82(position, vec2(0.75, 0.15));
+        case 3: return sdTorus(opTwist(position), vec2(0.6, 0.2));
+        case 4: return opS( sdTorus82(position, vec2(0.60, 0.3)),
+                            sdCylinder(opRep(vec3(atan(position.x, position.z) / 6.2831,
+                                                    1.0,
+                                                    0.015 + 0.25 * length(position)) + 1.0,
+                                             vec3(0.05, 1.0, 0.075)),
+                                       vec2(0.02, 0.8)));
+        case 5: return opI(sdCylinder(opRep(position + vec3(1.0, 1.0, 1.0), vec3(1.0, 2.0, 1.0)), vec2(0.3, 2.0)),
+                           sdBox(position + vec3(1.0, 1.0, 1.0), vec3(2.0, 2.0, 2.0)));
+        case 6: return sdFractalPyramid(position + vec3(0.0, 1.0, 0.0), vec3(0.894, 0.447, 2.0), 2.0);
+        default: return 0.0;
+    }
+}
+
+vec3 sdCalculateNormal(in vec3 pos, in uint sdPrimitive) {
+
+    vec2 e = vec2(1.0, -1.0) * 0.5773 * 0.0001;
+    return normalize(
+        e.xyy * getDistanceFromSignedDistancePrimitive(pos + e.xyy, sdPrimitive) +
+        e.yyx * getDistanceFromSignedDistancePrimitive(pos + e.yyx, sdPrimitive) +
+        e.yxy * getDistanceFromSignedDistancePrimitive(pos + e.yxy, sdPrimitive) +
+        e.xxx * getDistanceFromSignedDistancePrimitive(pos + e.xxx, sdPrimitive));
+}
+
+bool raySignedDistancePrimitiveTest(in Ray ray, uint sdPrimitive, out float thit, out ProceduralPrimitiveAttributes attr, in float stepScale) {
+
+    const float threshold = 0.0001;
+    float t = gl_RayTminNV;
+    const uint maxSteps = 512;
+
+    uint i = 0;
+
+    while (i++ < maxSteps && t <= gl_RayTmaxNV) {
+        vec3 position = ray.origin + t * ray.direction;
+        float distance = getDistanceFromSignedDistancePrimitive(position, sdPrimitive);
+
+        if (distance <= threshold * t) {
+            vec3 hitSurfaceNormal = sdCalculateNormal(position, sdPrimitive);
+
+            if (isAValidHit(ray, t, hitSurfaceNormal)) {
+                thit = t;
+                attr.normal = hitSurfaceNormal;
+                return true;
+            }
+        }
+
+        t += stepScale * distance;
+    }
+
+    return false;
+}
+
+void main() {
+
+    Ray localRay = getRayInAABBPrimitiveLocalSpace();
+    uint primitiveType = aabbCB.primitiveType;
+
+    float thit;
+    ProceduralPrimitiveAttributes attr;
+
+    if (raySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, materialCB.stepScale)) {
+
+        PrimitiveInstancePerFrameBuffer aabbAttribute = aabbPrimitiveAttribs[aabbCB.instanceIndex];
+        attr.normal = mat3x3(aabbAttribute.localSpaceToBottomLevelAS) * attr.normal;
+        attr.normal = normalize(attr.normal * mat3x3(gl_ObjectToWorldNV));
+
+        hitNormal = attr.normal;
+
+        reportIntersectionNV(thit, 0);
+    }
+}

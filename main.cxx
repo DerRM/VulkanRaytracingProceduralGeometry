@@ -9,7 +9,11 @@
 #include <algorithm>
 #include <fstream>
 
+#ifdef WIN32
+#include <Windows.h>
+#elif
 #include <xcb/xcb.h>
+#endif
 
 //#define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
@@ -44,8 +48,60 @@ uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRe
     return memoryType;
 }
 
+#ifdef WIN32
+LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	//Window* window = (Window*)(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
+	switch (message)
+	{
+	case WM_SIZE:
+	{
+		//openglRenderer.reshapeWindow(LOWORD(lParam), HIWORD(lParam));
+
+		int width = LOWORD(lParam);
+		int height = HIWORD(lParam);
+
+		//if (window->m_reshapeFunc) {
+		//	window->m_reshapeFunc(width, height);
+		//}
+
+		//window->setWidth(width);
+		//window->setHeight(height);
+
+	} break;
+	case WM_KEYDOWN:
+		switch (wParam)
+		{
+		case 'D':
+			//wasDPressed = true;
+			break;
+
+		default:
+			break;
+		}
+		break;
+	case WM_KEYUP:
+		switch (wParam)
+		{
+		case 'D':
+			//wasDPressed = !wasDPressed;
+			break;
+		default:
+			break;
+		}
+		break;
+	case WM_CLOSE:
+		PostQuitMessage(0);
+		return 0;
+	}
+
+	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+#endif
+
 #ifdef _DEBUG
-VkBool32 debug_callback(
+VkBool32 VKAPI_PTR debug_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT                  /*messageTypes*/,
         const VkDebugUtilsMessengerCallbackDataEXT*      pCallbackData,
@@ -90,9 +146,15 @@ int main() {
 
     std::vector<const char*> enabledExtensions;
     enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+#ifdef WIN32
+	enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#elif
     enabledExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#endif
+
 #ifdef _DEBUG
-    enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+   enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
     //enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     enabledExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -101,6 +163,7 @@ int main() {
 #ifdef _DEBUG
     enableValidationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
 #endif
+	enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
 
     VkInstanceCreateInfo instanceInfo = {};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -112,7 +175,10 @@ int main() {
 
 
     VkInstance instance;
-    vkCreateInstance(&instanceInfo, nullptr, &instance);
+    VkResult res = vkCreateInstance(&instanceInfo, nullptr, &instance);
+	if (res != VK_SUCCESS) {
+		printf("vkCreateInstance failed\n");
+	}
 
 #ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
@@ -180,7 +246,10 @@ int main() {
     deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(activatedDeviceExtensions.size());
     deviceCreateInfo.ppEnabledExtensionNames = activatedDeviceExtensions.data();
 
-    vkCreateDevice(gpu, &deviceCreateInfo, nullptr, &device);
+    res = vkCreateDevice(gpu, &deviceCreateInfo, nullptr, &device);
+	if (res != VK_SUCCESS) {
+		printf("vkCreateDevice failed\n");
+	}
 
     CVulkanHelper helper(device, gpu);
 
@@ -331,7 +400,7 @@ int main() {
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
     VkPipelineLayout pipelineLayout;
-    VkResult res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+    res = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     if (res != VK_SUCCESS) {
         printf("vkCreatePipelineLayout failed\n");
     }
@@ -356,6 +425,48 @@ int main() {
     vkGetRayTracingShaderGroupHandles(device, raytracingPipeline, 2, 1, raytracingProperties.shaderGroupHandleSize, mappedMemory);
     vkUnmapMemory(device, groupBuffer.memory);
 */
+
+	const char* applicationName = "VulkanRendering";
+
+	VkSurfaceKHR surface;
+#ifdef WIN32
+
+
+	DWORD dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+
+	HINSTANCE hInstance = GetModuleHandle(NULL);
+
+	WNDCLASSEX windowClass;
+	windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	windowClass.lpfnWndProc = (WNDPROC)wndProc;
+	windowClass.cbClsExtra = 0;
+	windowClass.cbWndExtra = 0;
+	windowClass.hInstance = hInstance;
+	windowClass.hIcon = LoadIcon(NULL, IDI_WINLOGO);
+	windowClass.hIconSm = windowClass.hIcon;
+	windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	windowClass.hbrBackground = NULL;
+	windowClass.lpszMenuName = NULL;
+	windowClass.lpszClassName = applicationName;
+	windowClass.cbSize = sizeof(WNDCLASSEX);
+
+	RegisterClassEx(&windowClass);
+
+	RECT winRect = { 0, 0, WIDTH, HEIGHT };
+	AdjustWindowRect(&winRect, WS_OVERLAPPEDWINDOW, FALSE);
+
+	HWND hWnd = CreateWindowEx(dwExStyle, applicationName, applicationName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, winRect.right - winRect.left, winRect.bottom - winRect.top, NULL, NULL, hInstance, NULL);
+	//SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
+	ShowWindow(hWnd, SW_SHOW);
+	SetForegroundWindow(hWnd);
+	SetFocus(hWnd);
+
+	VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
+	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	surfaceCreateInfo.hinstance = hInstance;
+	surfaceCreateInfo.hwnd = hWnd;
+	vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
+#elif
     int screenp = 0;
     xcb_connection_t* connection = xcb_connect(nullptr, &screenp);
     if (xcb_connection_has_error(connection)) {
@@ -382,8 +493,8 @@ int main() {
     surfaceCreateInfo.window = window;
     surfaceCreateInfo.connection = connection;
 
-    VkSurfaceKHR surface;
     vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
+#endif
 
     VkBool32 queueSupported;
     vkGetPhysicalDeviceSurfaceSupportKHR(gpu, 0, surface, &queueSupported);
@@ -422,7 +533,7 @@ int main() {
     }
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
-
+	/*
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -432,7 +543,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
-
+	*/
     VkExtent2D swapExtent;
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
@@ -559,7 +670,7 @@ int main() {
     cmdBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdBufferAllocInfo.commandPool = commandPool;
     cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmdBufferAllocInfo.commandBufferCount = commandBuffers.size();
+    cmdBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
     vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers.data());
 
     VulkanBuffer raygenShaderGroup = rayTracing.getRayGenShaderGroups();
@@ -676,7 +787,10 @@ int main() {
         vkCreateFence(device, &fenceCreateInfo, nullptr, &fences[fenceIndex]);
     }
 
-    const char* applicationName = "VulkanRendering";
+	bool running = true;
+
+#ifdef WIN32
+#elif
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, static_cast<uint32_t>(strlen(applicationName)), applicationName);
 
     xcb_intern_atom_cookie_t wmDeleteCookie = xcb_intern_atom(connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
@@ -690,11 +804,22 @@ int main() {
     xcb_map_window(connection, window);
     xcb_flush(connection);
 
-    bool running = true;
     xcb_generic_event_t *event;
     xcb_client_message_event_t *cm;
+#endif
 
     while (running) {
+#ifdef WIN32
+		MSG msg;
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+
+		if (msg.message == WM_QUIT) {
+			running = false;
+		}
+#elif
         while ((event = xcb_poll_for_event(connection)) != nullptr) {
             switch (event->response_type & ~0x80) {
                 case XCB_CLIENT_MESSAGE: {
@@ -706,7 +831,7 @@ int main() {
             }
             free(event);
         }
-
+#endif
         rayTracing.update();
 
         uint32_t imageIndex;
@@ -743,7 +868,10 @@ int main() {
         vkQueuePresentKHR(queue, &presentInfo);
     }
 
+#ifdef WIN32
+#elif
     xcb_destroy_window(connection, window);
+#endif
 
     return 0;
 }
