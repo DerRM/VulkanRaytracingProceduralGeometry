@@ -533,7 +533,7 @@ int main() {
     }
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
-	/*
+	
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -543,7 +543,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
-	*/
+	
     VkExtent2D swapExtent;
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
@@ -723,7 +723,7 @@ int main() {
         imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imageMemoryBarrier.image = swapImages[commandBufferIndex];
         imageMemoryBarrier.subresourceRange = subresourceRange;
-        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
         imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
         imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
@@ -733,7 +733,7 @@ int main() {
         imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imageMemoryBarrier.image = offscreenImage.handle;
         imageMemoryBarrier.subresourceRange = subresourceRange;
-        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
         VkImageCopy copyRegion;
         copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
@@ -751,32 +751,23 @@ int main() {
         imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imageMemoryBarrier.image = swapImages[commandBufferIndex];
         imageMemoryBarrier.subresourceRange = subresourceRange;
-        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
         vkEndCommandBuffer(commandBuffers[commandBufferIndex]);
-        /*
-        VkClearValue clearColor = { 1.0f, 0.0f, 0.0f, 1.0f };
-
-        VkRenderPassBeginInfo renderpassBeginInfo = {};
-        renderpassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderpassBeginInfo.renderPass = renderpass;
-        renderpassBeginInfo.framebuffer = swapFramebuffers[commandBufferIndex];
-        renderpassBeginInfo.renderArea.offset = { 0, 0 };
-        renderpassBeginInfo.renderArea.extent = swapExtent;
-        renderpassBeginInfo.clearValueCount = 1;
-        renderpassBeginInfo.pClearValues = &clearColor;
-        vkCmdBeginRenderPass(commandBuffers[commandBufferIndex], &renderpassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-        */
     }
 
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    VkSemaphore imageAvailableSemaphore;
-    vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore);
+    std::vector<VkSemaphore> imageAvailableSemaphores(swapImageCount);
+	for (size_t index = 0; index < imageAvailableSemaphores.size(); ++index) {
+		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[index]);
+	}
 
-    VkSemaphore renderFinishedSemaphore;
-    vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore);
+    std::vector<VkSemaphore> renderFinishedSemaphores(swapImageCount);
+	for (size_t index = 0; index < renderFinishedSemaphores.size(); ++index) {
+		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[index]);
+	}
 
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -808,6 +799,8 @@ int main() {
     xcb_client_message_event_t *cm;
 #endif
 
+	uint32_t frameIndex = 0;
+
     while (running) {
 #ifdef WIN32
 		MSG msg;
@@ -835,37 +828,37 @@ int main() {
         rayTracing.update();
 
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(device, swapchain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
-        VkFence fence = fences[imageIndex];
-        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-        vkResetFences(device, 1, &fence);
-
-        //VkFence fence =
+        vkAcquireNextImageKHR(device, swapchain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
 
         VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+        submitInfo.pWaitSemaphores = &imageAvailableSemaphores[frameIndex];
         submitInfo.pWaitDstStageMask = &waitStageMask;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+        submitInfo.pCommandBuffers = &commandBuffers[frameIndex];
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+        submitInfo.pSignalSemaphores = &renderFinishedSemaphores[frameIndex];
+
+		VkFence fence = fences[frameIndex];
+		vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+		vkResetFences(device, 1, &fence);
 
         vkQueueSubmit(queue, 1, &submitInfo, fence);
 
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+        presentInfo.pWaitSemaphores = &renderFinishedSemaphores[frameIndex];
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapchain;
         presentInfo.pImageIndices = &imageIndex;
 
         vkQueuePresentKHR(queue, &presentInfo);
+
+		frameIndex = (frameIndex + 1) % swapImageCount;
     }
 
 #ifdef WIN32
