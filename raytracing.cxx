@@ -966,7 +966,7 @@ void CRayTracing::buildProceduralGeometryAABBs() {
 
         glm::vec3 stride = glm::vec3(kAabbWidth + kAabbDistance, kAabbWidth + kAabbDistance, kAabbWidth + kAabbDistance);
 
-        auto initializeAABB = [&](auto const& offsetIndex, auto const& size) {
+        auto initializeAABB = [&](glm::vec3 const& offsetIndex, glm::vec3 const& size) {
             return AABB {
                 basePosition.x + offsetIndex.x * stride.x,
                 basePosition.y + offsetIndex.y * stride.y,

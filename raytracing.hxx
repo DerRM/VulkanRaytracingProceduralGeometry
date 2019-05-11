@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <stdio.h>
 #include <vector>
+#include <string>
 
 //#include "shader.hxx"
 #include "vulkanhelper.hxx"

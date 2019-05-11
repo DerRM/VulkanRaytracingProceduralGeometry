@@ -11,7 +11,7 @@
 
 #ifdef WIN32
 #include <Windows.h>
-#elif
+#elif defined(__linux__)
 #include <xcb/xcb.h>
 #endif
 
@@ -149,7 +149,7 @@ int main() {
 
 #ifdef WIN32
 	enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#elif
+#elif defined(__linux__)
     enabledExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
 
@@ -466,7 +466,7 @@ int main() {
 	surfaceCreateInfo.hinstance = hInstance;
 	surfaceCreateInfo.hwnd = hWnd;
 	vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
-#elif
+#elif defined(__linux__)
     int screenp = 0;
     xcb_connection_t* connection = xcb_connect(nullptr, &screenp);
     if (xcb_connection_has_error(connection)) {
@@ -781,7 +781,7 @@ int main() {
 	bool running = true;
 
 #ifdef WIN32
-#elif
+#elif defined(__linux__)
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8, static_cast<uint32_t>(strlen(applicationName)), applicationName);
 
     xcb_intern_atom_cookie_t wmDeleteCookie = xcb_intern_atom(connection, 0, strlen("WM_DELETE_WINDOW"), "WM_DELETE_WINDOW");
@@ -812,7 +812,7 @@ int main() {
 		if (msg.message == WM_QUIT) {
 			running = false;
 		}
-#elif
+#elif defined(__linux__)
         while ((event = xcb_poll_for_event(connection)) != nullptr) {
             switch (event->response_type & ~0x80) {
                 case XCB_CLIENT_MESSAGE: {
@@ -862,7 +862,7 @@ int main() {
     }
 
 #ifdef WIN32
-#elif
+#elif defined(__linux__)
     xcb_destroy_window(connection, window);
 #endif
 
