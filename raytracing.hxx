@@ -40,7 +40,7 @@ public:
     void initScene();
     VkPipeline createPipeline(VkPipelineLayout pipelineLayout);
     void createCommandBuffers();
-    void createShader(VkShaderStageFlagBits type, std::string const& name, std::string const& shader_source);
+    void createShader(VkShaderStageFlagBits type, std::string const& shader_source);
     void createShaderStages();
     //std::vector<VkRayTracingShaderGroupCreateInfoNV> const& createShaderGroups();
     void createSceneBuffer();

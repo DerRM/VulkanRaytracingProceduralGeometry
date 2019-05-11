@@ -188,7 +188,7 @@ void CRayTracing::updateAABBPrimitiveBuffer() {
     m_helper.copyToBuffer(m_aabbPrimitiveBuffer, m_aabbPrimitiveAttributeBuffer, sizeof(PrimitiveInstancePerFrameBuffer) * IntersectionShaderType::kTotalPrimitiveCount);
 }
 
-void CRayTracing::createShader(VkShaderStageFlagBits type, std::string const& name, std::string const& shader_source) {
+void CRayTracing::createShader(VkShaderStageFlagBits type, std::string const& shader_source) {
 
 	uint8_t* memory = nullptr;
 
@@ -525,14 +525,14 @@ void CRayTracing::createPrimitives() {
 }
 
 void CRayTracing::createShaderStages() {
-    createShader(VK_SHADER_STAGE_RAYGEN_BIT_NV, "raygen", "shader/raygen.spv");
-    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "closest_hit_triangle", "shader/closest_hit_triangle.spv");
-    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "closest_hit_aabb", "shader/closest_hit_aabb.spv");
-    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "miss", "shader/miss.spv");
-    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "miss_shadowray", "shader/miss_shadow_ray.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "intersection_analytic", "shader/intersection_analytic.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "intersection_volumetric", "shader/intersection_volumetric.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "intersection_signeddistance", "shader/intersection_signed_distance.spv");
+    createShader(VK_SHADER_STAGE_RAYGEN_BIT_NV, "shader/raygen.spv");
+    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_triangle.spv");
+    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_aabb.spv");
+    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss.spv");
+    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss_shadow_ray.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_analytic.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_volumetric.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_signed_distance.spv");
 }
 
 void CRayTracing::createRayGenShaderGroups() {
