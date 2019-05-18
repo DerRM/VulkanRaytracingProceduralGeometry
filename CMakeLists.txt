@@ -3,6 +3,8 @@ project(VulkanRendering)
 
 set (CMAKE_CXX_STANDARD 11)
 
+message(STATUS "Vulkan SDK Location $ENV{VULKAN_SDK}")
+
 find_package(Vulkan)
 
 include_directories(external/glm)
