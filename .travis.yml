@@ -14,7 +14,8 @@ matrix:
   - os: windows
     before_install:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe?Human=true
-      - ./vulkan-sdk.exe /S
+      - powershell
+      - cmd /min /C "set __COMPAT_LAYER=RUNASINVOKER && start " .\vulkan-sdk.exe /S
 
 script:
   - mkdir build
