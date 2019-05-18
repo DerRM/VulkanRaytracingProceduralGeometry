@@ -11,6 +11,11 @@ matrix:
       - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-xenial.list http://packages.lunarg.com/vulkan/lunarg-vulkan-xenial.list
       - sudo apt update
       - sudo apt install vulkan-sdk
+    script:
+      - mkdir build
+      - cd build
+      - cmake ..
+      - make
   - os: windows
     before_install:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/1.1.106.0/windows/vulkan-sdk.exe?Human=true
@@ -21,9 +26,8 @@ matrix:
       - export VULKAN_SDK=C:\\VulkanSDK\\1.1.106.0
       - echo $VULKAN_SDK
       - env
-
-script:
-  - mkdir build
-  - cd build
-  - cmake ..
-  - make
+    script:
+      - mkdir build
+      - cd build
+      - cmake -G"Visual Studio 15 2017 Win64" ..
+      - msbuild VulkanRendering.sln
