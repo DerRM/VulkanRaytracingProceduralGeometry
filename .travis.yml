@@ -17,6 +17,7 @@ matrix:
       - echo "cmd /min /C \"set __COMPAT_LAYER=RUNASINVOKER && start \" .\vulkan-sdk.exe /S && refreshenv && echo %VULKAN_SDK% && exit" > test.bat
       - ./test.bat
       - cd C:/VulkanSDK/1.1.106.0
+      - cd -
       - export VULKAN_SDK=C:\\VulkanSDK\\1.1.106.0
       - echo $VULKAN_SDK
       - env
