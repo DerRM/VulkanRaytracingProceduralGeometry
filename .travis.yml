@@ -11,7 +11,7 @@ matrix:
       - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-xenial.list http://packages.lunarg.com/vulkan/lunarg-vulkan-xenial.list
       - sudo apt update
       - sudo apt install vulkan-sdk
-	  
+
 script:
   - mkdir build
   - cd build
