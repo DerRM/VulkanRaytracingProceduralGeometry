@@ -13,8 +13,8 @@ matrix:
       - sudo apt install vulkan-sdk
   - os: windows
     before_install:
-      - curl https://vulkan.lunarg.com/sdk/home#sdk/downloadConfirm/latest/windows/vulkan-sdk.exe -O vulkan-sdk.exe
-      - vulkan-sdk.exe /S
+      - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe?Human=true
+      - .\vulkan-sdk.exe /S
 
 script:
   - mkdir build
