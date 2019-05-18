@@ -16,6 +16,7 @@ matrix:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe?Human=true
       - echo "cmd /min /C \"set __COMPAT_LAYER=RUNASINVOKER && start \" .\vulkan-sdk.exe /S && exit" > test.bat
       - ./test.bat
+      - echo $VULKAN_SDK
 
 script:
   - mkdir build
