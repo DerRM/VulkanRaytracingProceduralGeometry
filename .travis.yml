@@ -17,6 +17,8 @@ matrix:
       - cmake ..
       - make
   - os: windows
+    env:
+      - MSBUILD_PATH="c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin"
     before_install:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/1.1.106.0/windows/vulkan-sdk.exe?Human=true
       - echo "cmd /min /C \"set __COMPAT_LAYER=RUNASINVOKER && start /wait \" .\vulkan-sdk.exe /S && exit" > test.bat
@@ -27,6 +29,7 @@ matrix:
       - echo $VULKAN_SDK
       - env
     script:
+      - export PATH=$MSBUILD_PATH:$PATH
       - mkdir build
       - cd build
       - cmake -G"Visual Studio 15 2017 Win64" ..
