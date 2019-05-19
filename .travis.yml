@@ -22,9 +22,8 @@ matrix:
     before_install:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe?Human=true
       - cmd //min //C "set __COMPAT_LAYER=RUNASINVOKER && start /wait " ./vulkan-sdk.exe //S
-      - cmd //C refreshenv
+      - export VULKAN_SDK=C:\VulkanSDK\1.1.106.0
       - echo $VULKAN_SDK
-      - env
     script:
       - export PATH=$MSBUILD_PATH:$PATH
       - mkdir build
