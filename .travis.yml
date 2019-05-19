@@ -19,7 +19,7 @@ matrix:
   - os: windows
     before_install:
       - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/1.1.106.0/windows/vulkan-sdk.exe?Human=true
-      - echo "cmd /min /C \"set __COMPAT_LAYER=RUNASINVOKER && start /wait \" .\vulkan-sdk.exe /S && refreshenv && echo %%VULKAN_SDK%% && exit" > test.bat
+      - echo "cmd /min /C \"set __COMPAT_LAYER=RUNASINVOKER && start /wait \" .\vulkan-sdk.exe /S && exit" > test.bat
       - ./test.bat
       - cd C:/VulkanSDK/1.1.106.0
       - cd -
@@ -30,4 +30,4 @@ matrix:
       - mkdir build
       - cd build
       - cmake -G"Visual Studio 15 2017 Win64" ..
-      - msbuild VulkanRendering.sln
+      - MSBuild.exe VulkanRendering.sln
