@@ -1,9 +1,5 @@
 language: cpp
 dist: xenial
-os: linux
-compiler: 
-  - gcc
-  - clang
 before_install:
   - wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
   - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-xenial.list http://packages.lunarg.com/vulkan/lunarg-vulkan-xenial.list
@@ -17,6 +13,10 @@ script:
 
 matrix:
   include:
+  - os: linux
+    compiler: gcc
+  - os: linux
+    compiler: clang
   - os: windows
     env:
       - MSBUILD_PATH="c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin"
@@ -31,6 +31,3 @@ matrix:
       - cd build
       - cmake -G"Visual Studio 15 2017 Win64" ..
       - MSBuild.exe VulkanRendering.sln
-    exclude:
-      - os: windows
-        compiler: gcc
