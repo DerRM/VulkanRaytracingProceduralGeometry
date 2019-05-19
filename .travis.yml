@@ -20,9 +20,9 @@ matrix:
     env:
       - MSBUILD_PATH="c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin"
     before_install:
-      - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe?Human=true
+      - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/1.1.106.0/windows/vulkan-sdk.exe?Human=true
       - cmd //min //C "set __COMPAT_LAYER=RUNASINVOKER && start /wait " ./vulkan-sdk.exe //S
-      - RefreshEnv.cmd
+      - export VULKAN_SDK=C:\\VulkanSDK\\1.1.106.0
       - echo $VULKAN_SDK
     script:
       - export PATH=$MSBUILD_PATH:$PATH
