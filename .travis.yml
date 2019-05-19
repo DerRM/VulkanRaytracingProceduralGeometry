@@ -4,8 +4,9 @@ dist: xenial
 matrix:
   include:
   - os: linux
-    compiler: gcc
-
+    compiler: 
+      - gcc
+      - clang
     before_install:
       - wget -qO - http://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
       - sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-xenial.list http://packages.lunarg.com/vulkan/lunarg-vulkan-xenial.list
@@ -19,11 +20,10 @@ matrix:
   - os: windows
     env:
       - MSBUILD_PATH="c:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin"
+      - VULKAN_SDK="c:\VulkanSDK\1.1.106.0"
     before_install:
-      - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/1.1.106.0/windows/vulkan-sdk.exe?Human=true
+      - curl --silent --show-error --output vulkan-sdk.exe https://sdk.lunarg.com/sdk/download/$VULKAN_SDK/windows/vulkan-sdk.exe?Human=true
       - cmd //min //C "set __COMPAT_LAYER=RUNASINVOKER && start /wait " ./vulkan-sdk.exe //S
-      - export VULKAN_SDK=C:\\VulkanSDK\\1.1.106.0
-      - echo $VULKAN_SDK
     script:
       - export PATH=$MSBUILD_PATH:$PATH
       - mkdir build
