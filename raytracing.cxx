@@ -819,10 +819,14 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
     VkDeviceSize bottomTriangleAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
 
-    accMemReqInfo.accelerationStructure = accStructs[0].handle;
-    vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
+    VkDeviceSize bottomAabbAccelerationStructureBufferSize = 0;
 
-    VkDeviceSize bottomAabbAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
+    for (size_t index = 0; index < accStructs.size(); ++index) {
+        accMemReqInfo.accelerationStructure = accStructs[index].handle;
+        vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
+
+        bottomAabbAccelerationStructureBufferSize = std::max(accMemReq.memoryRequirements.size, bottomAabbAccelerationStructureBufferSize);
+    }
 
     accMemReqInfo.accelerationStructure = topAccelerationStructure;
     vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
@@ -858,6 +862,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
         asInfo.geometryCount = 1;
         asInfo.pGeometries = &triangleGeometry;
+        asInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
         vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, triangleAccStruct.handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
     }
 
@@ -870,6 +875,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
         asInfo.geometryCount = 1;//aabbGeometries.size();
         asInfo.pGeometries = &aabbGeometries[index];
+        asInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV;
         vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, accStructs[index].handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
 
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
@@ -880,7 +886,6 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
         asInfo.instanceCount = static_cast<uint32_t>(instances.size());
-
         vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, instanceBuffer.handle, 0, VK_FALSE, topAccelerationStructure, VK_NULL_HANDLE, scratchBuffer.handle, 0);
     }
 
