@@ -1,7 +1,6 @@
 #ifndef RAYTRACING_H
 #define RAYTRACING_H
 
-#include <vulkan/vulkan.h>
 #include <stdio.h>
 #include <vector>
 #include <string>
@@ -9,22 +8,6 @@
 //#include "shader.hxx"
 #include "vulkanhelper.hxx"
 #include "raytracingscenedefines.hxx"
-
-#define DECLARE_RAYTRACING(methodname) \
-    extern PFN_##methodname##NV methodname
-
-DECLARE_RAYTRACING(vkCreateAccelerationStructure);
-DECLARE_RAYTRACING(vkDestroyAccelerationStructure);
-DECLARE_RAYTRACING(vkGetAccelerationStructureMemoryRequirements);
-DECLARE_RAYTRACING(vkBindAccelerationStructureMemory);
-DECLARE_RAYTRACING(vkCmdBuildAccelerationStructure);
-DECLARE_RAYTRACING(vkCmdCopyAccelerationStructure);
-DECLARE_RAYTRACING(vkCmdTraceRays);
-DECLARE_RAYTRACING(vkCreateRayTracingPipelines);
-DECLARE_RAYTRACING(vkGetRayTracingShaderGroupHandles);
-DECLARE_RAYTRACING(vkGetAccelerationStructureHandle);
-DECLARE_RAYTRACING(vkCmdWriteAccelerationStructuresProperties);
-DECLARE_RAYTRACING(vkCompileDeferred);
 
 struct BottomLevelAccelerationStructure {
     VkAccelerationStructureNV handle;
@@ -35,7 +18,7 @@ struct BottomLevelAccelerationStructure {
 class CRayTracing
 {
 public:
-    CRayTracing(VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesNV const& raytracingProperties);
+    CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesNV const& raytracingProperties);
     void init();
     void initScene();
     VkPipeline createPipeline(VkPipelineLayout pipelineLayout);
@@ -77,6 +60,7 @@ private:
     void createHitShaderTable();
 
 private:
+	VkInstance m_instance;
     VkDevice m_device;
     VkPhysicalDevice m_gpu;
     VkQueue m_queue;

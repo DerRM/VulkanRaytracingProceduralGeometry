@@ -4,30 +4,6 @@
 #include <iostream>
 #include <fstream>
 
-#define ACTIVATE_RAYTRACING(methodname) \
-    do { \
-        methodname = reinterpret_cast<PFN_##methodname##NV>(vkGetDeviceProcAddr(m_device, #methodname"NV")); \
-        if (!methodname) { \
-            printf("Could not get "#methodname"NV pointer\n"); \
-        } \
-    } while (0)
-
-#define DEFINE_RAYTRACING(methodname) \
-    PFN_##methodname##NV methodname = nullptr
-
-DEFINE_RAYTRACING(vkCreateAccelerationStructure);
-DEFINE_RAYTRACING(vkDestroyAccelerationStructure);
-DEFINE_RAYTRACING(vkGetAccelerationStructureMemoryRequirements);
-DEFINE_RAYTRACING(vkBindAccelerationStructureMemory);
-DEFINE_RAYTRACING(vkCmdBuildAccelerationStructure);
-DEFINE_RAYTRACING(vkCmdCopyAccelerationStructure);
-DEFINE_RAYTRACING(vkCmdTraceRays);
-DEFINE_RAYTRACING(vkCreateRayTracingPipelines);
-DEFINE_RAYTRACING(vkGetRayTracingShaderGroupHandles);
-DEFINE_RAYTRACING(vkGetAccelerationStructureHandle);
-DEFINE_RAYTRACING(vkCmdWriteAccelerationStructuresProperties);
-DEFINE_RAYTRACING(vkCompileDeferred);
-
 struct VkGeometryInstanceNV {
     float          transform[12];
     uint32_t       instanceCustomIndex : 24;
@@ -37,30 +13,18 @@ struct VkGeometryInstanceNV {
     uint64_t       accelerationStructureHandle;
 };
 
-CRayTracing::CRayTracing(VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesNV const& raytracingProperties)
-    : m_device(device)
+CRayTracing::CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesNV const& raytracingProperties)
+    : m_instance(instance)
+	, m_device(device)
     , m_gpu(gpu)
     , m_queue(queue)
     , m_commandPool(commandPool)
-    , m_helper(CVulkanHelper(device, gpu))
+    , m_helper(CVulkanHelper(instance, device, gpu))
     , m_raytracingProperties(raytracingProperties)
 {
 }
 
 void CRayTracing::init() {
-    ACTIVATE_RAYTRACING(vkCreateAccelerationStructure);
-    ACTIVATE_RAYTRACING(vkDestroyAccelerationStructure);
-    ACTIVATE_RAYTRACING(vkGetAccelerationStructureMemoryRequirements);
-    ACTIVATE_RAYTRACING(vkBindAccelerationStructureMemory);
-    ACTIVATE_RAYTRACING(vkCmdBuildAccelerationStructure);
-    ACTIVATE_RAYTRACING(vkCmdCopyAccelerationStructure);
-    ACTIVATE_RAYTRACING(vkCmdTraceRays);
-    ACTIVATE_RAYTRACING(vkCreateRayTracingPipelines);
-    ACTIVATE_RAYTRACING(vkGetRayTracingShaderGroupHandles);
-    ACTIVATE_RAYTRACING(vkGetAccelerationStructureHandle);
-    ACTIVATE_RAYTRACING(vkCmdWriteAccelerationStructuresProperties);
-    ACTIVATE_RAYTRACING(vkCompileDeferred);
-
     vkGetPhysicalDeviceMemoryProperties(m_gpu, &m_gpuMemProps);
 }
 
@@ -258,7 +222,7 @@ VkPipeline CRayTracing::createPipeline(VkPipelineLayout pipelineLayout) {
     raytracingPipelineInfo.basePipelineIndex = 0;
     raytracingPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    vkCreateRayTracingPipelines(m_device, VK_NULL_HANDLE, 1, &raytracingPipelineInfo, nullptr, &m_raytracingPipeline);
+    vkCreateRayTracingPipelinesNV(m_device, VK_NULL_HANDLE, 1, &raytracingPipelineInfo, nullptr, &m_raytracingPipeline);
 
     createRayGenShaderTable();
     //createMissShaderTable();
@@ -286,11 +250,11 @@ void CRayTracing::createRayGenShaderTable() {
     void* data = nullptr;
     vkMapMemory(m_device, m_raygenShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
-    vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, 0, static_cast<uint32_t>(m_rayGenShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), mappedMemory);
+    vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, 0, static_cast<uint32_t>(m_rayGenShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), mappedMemory);
     mappedMemory += m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size();
-    vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size(), mappedMemory);
+    vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size(), mappedMemory);
     mappedMemory += m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size();
-    vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
+    vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
     mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
     memcpy(mappedMemory, &m_planeMaterialCB, sizeof(PrimitiveConstantBuffer));
     mappedMemory += sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer);
@@ -298,7 +262,7 @@ void CRayTracing::createRayGenShaderTable() {
     uint32_t offset = 0;
 
     for (size_t index = 0; index < AnalyticPrimitive::Count; ++index) {
-        vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 1), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
+        vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 1), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
         mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
@@ -309,7 +273,7 @@ void CRayTracing::createRayGenShaderTable() {
     offset += AnalyticPrimitive::Count;
 
     for (size_t index = 0; index < VolumetricPrimitive::Count; ++index) {
-        vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 2), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
+        vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 2), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
         mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
@@ -320,7 +284,7 @@ void CRayTracing::createRayGenShaderTable() {
     offset += VolumetricPrimitive::Count;
 
     for (size_t index = 0; index < SignedDistancePrimitive::Count; ++index) {
-        vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 3), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
+        vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 3), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory);
         mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
@@ -338,7 +302,7 @@ void CRayTracing::createMissShaderTable() {
     void* data = nullptr;
     vkMapMemory(m_device, m_missShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
-    vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), bufferSize, mappedMemory);
+    vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), bufferSize, mappedMemory);
     vkUnmapMemory(m_device, m_missShaderGroupBuffer.memory);
 }
 
@@ -350,13 +314,13 @@ void CRayTracing::createHitShaderTable() {
     vkMapMemory(m_device, m_hitShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
 
-    vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
+    vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
     mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
     memcpy(mappedMemory, &m_planeMaterialCB, sizeof(PrimitiveConstantBuffer));
     mappedMemory += sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer);
 
     //for (size_t index = 1; index < m_hitShaderGroups.size(); ++index) {
-        vkGetRayTracingShaderGroupHandles(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() /*+ index*/ + 1), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
+        vkGetRayTracingShaderGroupHandlesNV(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() /*+ index*/ + 1), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
         mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[/*index - 1*/2], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(PrimitiveConstantBuffer);
@@ -633,7 +597,7 @@ BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStruc
     accelerationStructureInfo.compactedSize = 0;
 
     VkAccelerationStructureNV accelerationStructure;
-    vkCreateAccelerationStructure(m_device, &accelerationStructureInfo, nullptr, &accelerationStructure);
+    vkCreateAccelerationStructureNV(m_device, &accelerationStructureInfo, nullptr, &accelerationStructure);
 
     VkAccelerationStructureMemoryRequirementsInfoNV bottomAccMemoryReqInfo = {};
     bottomAccMemoryReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
@@ -641,7 +605,7 @@ BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStruc
     bottomAccMemoryReqInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
 
     VkMemoryRequirements2 bottomAccMemoryReq = {};
-    vkGetAccelerationStructureMemoryRequirements(m_device, &bottomAccMemoryReqInfo, &bottomAccMemoryReq);
+    vkGetAccelerationStructureMemoryRequirementsNV(m_device, &bottomAccMemoryReqInfo, &bottomAccMemoryReq);
 
     VkMemoryAllocateInfo bottomAccMemAlloc = {};
     bottomAccMemAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -659,10 +623,10 @@ BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStruc
     bottomAccBindMemoryInfo.deviceIndexCount = 0;
     bottomAccBindMemoryInfo.pDeviceIndices = nullptr;
 
-    vkBindAccelerationStructureMemory(m_device, 1, &bottomAccBindMemoryInfo);
+    vkBindAccelerationStructureMemoryNV(m_device, 1, &bottomAccBindMemoryInfo);
 
     uint64_t accelerationStructureHandle;
-    vkGetAccelerationStructureHandle(m_device, accelerationStructure, sizeof(uint64_t), &accelerationStructureHandle);
+    vkGetAccelerationStructureHandleNV(m_device, accelerationStructure, sizeof(uint64_t), &accelerationStructureHandle);
 
     BottomLevelAccelerationStructure accStruct = {};
     accStruct.handle = accelerationStructure;
@@ -783,7 +747,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     topAccelerationStructureInfo.compactedSize = 0;
 
     VkAccelerationStructureNV topAccelerationStructure;
-    vkCreateAccelerationStructure(m_device, &topAccelerationStructureInfo, nullptr, &topAccelerationStructure);
+    vkCreateAccelerationStructureNV(m_device, &topAccelerationStructureInfo, nullptr, &topAccelerationStructure);
 
     VkAccelerationStructureMemoryRequirementsInfoNV topAccMemReqInfo = {};
     topAccMemReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
@@ -791,7 +755,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     topAccMemReqInfo.accelerationStructure = topAccelerationStructure;
 
     VkMemoryRequirements2 topAccMemReq;
-    vkGetAccelerationStructureMemoryRequirements(m_device, &topAccMemReqInfo, &topAccMemReq);
+    vkGetAccelerationStructureMemoryRequirementsNV(m_device, &topAccMemReqInfo, &topAccMemReq);
 
     VkMemoryAllocateInfo topAccMemAllocInfo = {};
     topAccMemAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -806,7 +770,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     topAccBindInfo.accelerationStructure = topAccelerationStructure;
     topAccBindInfo.memory = topAccMemory;
 
-    vkBindAccelerationStructureMemory(m_device, 1, &topAccBindInfo);
+    vkBindAccelerationStructureMemoryNV(m_device, 1, &topAccBindInfo);
 
     VkAccelerationStructureMemoryRequirementsInfoNV accMemReqInfo = {};
     accMemReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
@@ -815,17 +779,17 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     accMemReqInfo.accelerationStructure = triangleAccStruct.handle;
 
     VkMemoryRequirements2 accMemReq;
-    vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
+    vkGetAccelerationStructureMemoryRequirementsNV(m_device, &accMemReqInfo, &accMemReq);
 
     VkDeviceSize bottomTriangleAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
 
     accMemReqInfo.accelerationStructure = accStructs[0].handle;
-    vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
+    vkGetAccelerationStructureMemoryRequirementsNV(m_device, &accMemReqInfo, &accMemReq);
 
     VkDeviceSize bottomAabbAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
 
     accMemReqInfo.accelerationStructure = topAccelerationStructure;
-    vkGetAccelerationStructureMemoryRequirements(m_device, &accMemReqInfo, &accMemReq);
+    vkGetAccelerationStructureMemoryRequirementsNV(m_device, &accMemReqInfo, &accMemReq);
     VkDeviceSize topAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
 
     VkDeviceSize scratchBufferSize = std::max(std::max(bottomTriangleAccelerationStructureBufferSize, topAccelerationStructureBufferSize), bottomAabbAccelerationStructureBufferSize);
@@ -858,7 +822,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
         asInfo.geometryCount = 1;
         asInfo.pGeometries = &triangleGeometry;
-        vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, triangleAccStruct.handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
+        vkCmdBuildAccelerationStructureNV(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, triangleAccStruct.handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
     }
 
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
@@ -870,7 +834,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
         asInfo.geometryCount = 1;//aabbGeometries.size();
         asInfo.pGeometries = &aabbGeometries[index];
-        vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, accStructs[index].handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
+        vkCmdBuildAccelerationStructureNV(cmdBuffer, &asInfo, VK_NULL_HANDLE, 0, VK_FALSE, accStructs[index].handle, VK_NULL_HANDLE, scratchBuffer.handle, 0);
 
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     }
@@ -881,7 +845,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
         asInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
         asInfo.instanceCount = static_cast<uint32_t>(instances.size());
 
-        vkCmdBuildAccelerationStructure(cmdBuffer, &asInfo, instanceBuffer.handle, 0, VK_FALSE, topAccelerationStructure, VK_NULL_HANDLE, scratchBuffer.handle, 0);
+        vkCmdBuildAccelerationStructureNV(cmdBuffer, &asInfo, instanceBuffer.handle, 0, VK_FALSE, topAccelerationStructure, VK_NULL_HANDLE, scratchBuffer.handle, 0);
     }
 
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);

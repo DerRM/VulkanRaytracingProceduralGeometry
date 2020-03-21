@@ -5,9 +5,8 @@ set (CMAKE_CXX_STANDARD 11)
 
 message(STATUS "Vulkan SDK Location $ENV{VULKAN_SDK}")
 
-find_package(Vulkan)
-
 include_directories(external/glm)
+include_directories(external/Vulkan-Headers/include)
 
 add_executable(VulkanRendering
     raytracingscenedefines.hxx
@@ -21,15 +20,11 @@ add_executable(VulkanRendering
     main.cxx
     )
 
-target_include_directories(VulkanRendering PRIVATE Vulkan::Vulkan)
-
 if (WIN32)
-	target_link_libraries(VulkanRendering Vulkan::Vulkan)
-
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")	
 else()
-	target_link_libraries(VulkanRendering Vulkan::Vulkan xcb)
+	target_link_libraries(VulkanRendering xcb)
 
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")	

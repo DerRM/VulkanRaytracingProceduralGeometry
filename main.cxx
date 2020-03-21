@@ -15,8 +15,7 @@
 #include <xcb/xcb.h>
 #endif
 
-//#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
+#include "vulkanhelper.hxx"
 
 #include "shader.hxx"
 #include "raytracing.hxx"
@@ -51,49 +50,17 @@ uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRe
 #ifdef WIN32
 LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	//Window* window = (Window*)(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-
 	switch (message)
 	{
-	case WM_SIZE:
-	{
-		//openglRenderer.reshapeWindow(LOWORD(lParam), HIWORD(lParam));
-
-		int width = LOWORD(lParam);
-		int height = HIWORD(lParam);
-
-		//if (window->m_reshapeFunc) {
-		//	window->m_reshapeFunc(width, height);
-		//}
-
-		//window->setWidth(width);
-		//window->setHeight(height);
-
-	} break;
-	case WM_KEYDOWN:
-		switch (wParam)
+		case WM_SIZE:
 		{
-		case 'D':
-			//wasDPressed = true;
-			break;
-
-		default:
-			break;
+			int width = LOWORD(lParam);
+			int height = HIWORD(lParam);
+		} break;
+		case WM_CLOSE: {
+			PostQuitMessage(0);
+			return 0;
 		}
-		break;
-	case WM_KEYUP:
-		switch (wParam)
-		{
-		case 'D':
-			//wasDPressed = !wasDPressed;
-			break;
-		default:
-			break;
-		}
-		break;
-	case WM_CLOSE:
-		PostQuitMessage(0);
-		return 0;
 	}
 
 	return DefWindowProc(hWnd, message, wParam, lParam);
@@ -125,6 +92,8 @@ VkBool32 VKAPI_PTR debug_callback(
 #endif
 
 int main() {
+
+	CVulkanHelper::initVulkan();
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -179,6 +148,8 @@ int main() {
 	if (res != VK_SUCCESS) {
 		printf("vkCreateInstance failed\n");
 	}
+
+	CVulkanHelper::initVulkanInstanceFunctions(instance);
 
 #ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
@@ -251,7 +222,7 @@ int main() {
 		printf("vkCreateDevice failed\n");
 	}
 
-    CVulkanHelper helper(device, gpu);
+	CVulkanHelper::initVulkanDeviceFunctions(device);
 
     VkQueue queue;
     vkGetDeviceQueue(device, 0, 0, &queue);
@@ -310,7 +281,7 @@ int main() {
 
     vkGetPhysicalDeviceProperties2(gpu, &props);
 
-    CRayTracing rayTracing(device, gpu, queue, commandPool, raytracingProperties);
+    CRayTracing rayTracing(instance, device, gpu, queue, commandPool, raytracingProperties);
     rayTracing.init();
     rayTracing.initScene();
 
@@ -708,7 +679,7 @@ int main() {
         vkCmdBindPipeline(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, raytracingPipeline);
         vkCmdBindDescriptorSets(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
-        vkCmdTraceRays(commandBuffers[commandBufferIndex],
+        vkCmdTraceRaysNV(commandBuffers[commandBufferIndex],
                        raygenShaderGroup.handle, 0,
                        raygenShaderGroup.handle, 1 * raytracingProperties.shaderGroupHandleSize, raytracingProperties.shaderGroupHandleSize,
                        raygenShaderGroup.handle, 3 * raytracingProperties.shaderGroupHandleSize, (raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)),
