@@ -204,9 +204,12 @@ int main() {
 
     VkDevice device;
 
+    VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
+    descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
 
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features2.pNext = &descriptorIndexingFeatures;
     vkGetPhysicalDeviceFeatures2(gpu, &features2);
 
     VkDeviceCreateInfo deviceCreateInfo = {};
