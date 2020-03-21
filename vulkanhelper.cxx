@@ -3,6 +3,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#if defined(__linux__)
+#include <dlfcn.h>
+#endif
+
 #define DEFINE_VK_FUNCTION(name) \
 PFN_##name name = nullptr
 
