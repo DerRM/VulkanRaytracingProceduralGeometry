@@ -102,6 +102,32 @@ EXTERN_VK_FUNCTION(vkGetAccelerationStructureHandleNV);
 EXTERN_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
 EXTERN_VK_FUNCTION(vkCompileDeferredNV);
 
+/*
+ * Vulkan KHR Raytracing extension functions
+ */
+EXTERN_VK_FUNCTION(vkBindAccelerationStructureMemoryKHR);
+EXTERN_VK_FUNCTION(vkBuildAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCmdBuildAccelerationStructureIndirectKHR);
+EXTERN_VK_FUNCTION(vkCmdBuildAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCmdCopyAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCmdCopyAccelerationStructureToMemoryKHR);
+EXTERN_VK_FUNCTION(vkCmdCopyMemoryToAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCmdTraceRaysIndirectKHR);
+EXTERN_VK_FUNCTION(vkCmdTraceRaysKHR);
+EXTERN_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesKHR);
+EXTERN_VK_FUNCTION(vkCreateAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCreateRayTracingPipelinesKHR);
+EXTERN_VK_FUNCTION(vkCopyAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkCopyAccelerationStructureToMemoryKHR);
+EXTERN_VK_FUNCTION(vkCopyMemoryToAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkDestroyAccelerationStructureKHR);
+EXTERN_VK_FUNCTION(vkGetAccelerationStructureDeviceAddressKHR);
+EXTERN_VK_FUNCTION(vkGetAccelerationStructureMemoryRequirementsKHR);
+EXTERN_VK_FUNCTION(vkGetDeviceAccelerationStructureCompatibilityKHR);
+EXTERN_VK_FUNCTION(vkGetRayTracingCaptureReplayShaderGroupHandlesKHR);
+EXTERN_VK_FUNCTION(vkGetRayTracingShaderGroupHandlesKHR);
+EXTERN_VK_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+
 struct VulkanBuffer {
     VkBuffer handle;
     VkDeviceMemory memory;
