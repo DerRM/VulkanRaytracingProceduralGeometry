@@ -1,0 +1,70 @@
+#version 460 core
+#extension GL_EXT_ray_tracing : require
+
+layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 0, binding = 1, rgba8) uniform image2D image;
+
+struct RayPayload {
+	vec4 color;
+	uint recursionDepth;
+};
+
+layout(location = 0) rayPayloadEXT RayPayload rayPayload;
+
+struct SceneConstantBuffer {
+	mat4x4 projectionToWorld;
+	vec4 cameraPosition;
+	vec4 lightPosition;
+	vec4 lightAmbientColor;
+	vec4 lightDiffuseColor;
+	float reflectance;
+	float elapsedTime;
+};
+
+layout(set = 0, binding = 2, std140) uniform appData {
+	SceneConstantBuffer params;
+};
+
+struct Ray {
+	vec3 origin;
+	vec3 direction;
+};
+
+Ray generateCameraRay(uvec2 index, in vec3 cameraPosition, in mat4x4 projectionToWorld) {
+
+	vec2 xy = index + 0.5;
+	vec2 screenPos = xy / gl_LaunchSizeEXT.xy * 2.0 - 1.0;
+
+	screenPos.y = -screenPos.y;
+
+	vec4 world = projectionToWorld * vec4(screenPos, 0.0, 1.0);
+	world.xyz /= world.w;
+
+	Ray ray;
+	ray.origin = cameraPosition;
+	ray.direction = normalize(world.xyz - ray.origin);
+
+	return ray;
+}
+
+void main()
+{
+   Ray ray = generateCameraRay(gl_LaunchIDEXT.xy, params.cameraPosition.xyz, params.projectionToWorld);
+
+   const uint rayFlags = gl_RayFlagsCullBackFacingTrianglesEXT;
+   const uint cullMask = 0xFF;
+   const uint sbtRecordOffset = 0;
+   const uint sbtRecordStride = 0;
+   const uint missIndex = 0;
+   const float tmin = 0;
+   const float tmax = 10000;
+   const int payloadLocation = 0;
+
+   rayPayload.color = vec4(0.0, 0.0, 0.0, 0.0);
+   rayPayload.recursionDepth = 1;
+
+   traceRayEXT(topLevelAS, rayFlags, cullMask, sbtRecordOffset, sbtRecordStride, missIndex, ray.origin, tmin, ray.direction, tmax, payloadLocation);
+
+   //imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(inUV.x, inUV.y, 0.0, 0.0));
+   imageStore(image, ivec2(gl_LaunchIDEXT.xy), rayPayload.color);
+}

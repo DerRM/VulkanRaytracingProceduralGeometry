@@ -17,7 +17,6 @@
 
 #include "vulkanhelper.hxx"
 
-#include "shader.hxx"
 #include "raytracing.hxx"
 
 
@@ -50,20 +49,20 @@ uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRe
 #ifdef WIN32
 LRESULT CALLBACK wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	switch (message)
-	{
-		case WM_SIZE:
-		{
-			int width = LOWORD(lParam);
-			int height = HIWORD(lParam);
-		} break;
-		case WM_CLOSE: {
-			PostQuitMessage(0);
-			return 0;
-		}
-	}
+    switch (message)
+    {
+        case WM_SIZE:
+        {
+            int width = LOWORD(lParam);
+            int height = HIWORD(lParam);
+        } break;
+        case WM_CLOSE: {
+            PostQuitMessage(0);
+            return 0;
+        }
+    }
 
-	return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hWnd, message, wParam, lParam);
 }
 #endif
 
@@ -93,7 +92,7 @@ VkBool32 VKAPI_PTR debug_callback(
 
 int main() {
 
-	CVulkanHelper::initVulkan();
+    CVulkanHelper::initVulkan();
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -117,7 +116,7 @@ int main() {
     enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
 #ifdef WIN32
-	enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+    enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif defined(__linux__)
     enabledExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
@@ -132,7 +131,7 @@ int main() {
 #ifdef _DEBUG
     enableValidationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
 #endif
-	enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
+    enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
 
     VkInstanceCreateInfo instanceInfo = {};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -145,11 +144,11 @@ int main() {
 
     VkInstance instance;
     VkResult res = vkCreateInstance(&instanceInfo, nullptr, &instance);
-	if (res != VK_SUCCESS) {
-		printf("vkCreateInstance failed\n");
-	}
+    if (res != VK_SUCCESS) {
+        printf("vkCreateInstance failed\n");
+    }
 
-	CVulkanHelper::initVulkanInstanceFunctions(instance);
+    CVulkanHelper::initVulkanInstanceFunctions(instance);
 
 #ifdef _DEBUG
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
@@ -200,6 +199,7 @@ int main() {
     activatedDeviceExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
+    activatedDeviceExtensions.push_back(VK_KHR_RAY_TRACING_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     VkDevice device;
@@ -221,11 +221,11 @@ int main() {
     deviceCreateInfo.ppEnabledExtensionNames = activatedDeviceExtensions.data();
 
     res = vkCreateDevice(gpu, &deviceCreateInfo, nullptr, &device);
-	if (res != VK_SUCCESS) {
-		printf("vkCreateDevice failed\n");
-	}
+    if (res != VK_SUCCESS) {
+        printf("vkCreateDevice failed\n");
+    }
 
-	CVulkanHelper::initVulkanDeviceFunctions(device);
+    CVulkanHelper::initVulkanDeviceFunctions(device);
 
     VkQueue queue;
     vkGetDeviceQueue(device, 0, 0, &queue);
@@ -400,46 +400,46 @@ int main() {
     vkUnmapMemory(device, groupBuffer.memory);
 */
 
-	const char* applicationName = "VulkanRendering";
+    const char* applicationName = "VulkanRendering";
 
-	VkSurfaceKHR surface;
+    VkSurfaceKHR surface;
 #ifdef WIN32
 
 
-	DWORD dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+    DWORD dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
-	HINSTANCE hInstance = GetModuleHandle(NULL);
+    HINSTANCE hInstance = GetModuleHandle(NULL);
 
-	WNDCLASSEX windowClass;
-	windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-	windowClass.lpfnWndProc = (WNDPROC)wndProc;
-	windowClass.cbClsExtra = 0;
-	windowClass.cbWndExtra = 0;
-	windowClass.hInstance = hInstance;
-	windowClass.hIcon = LoadIcon(NULL, IDI_WINLOGO);
-	windowClass.hIconSm = windowClass.hIcon;
-	windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	windowClass.hbrBackground = NULL;
-	windowClass.lpszMenuName = NULL;
-	windowClass.lpszClassName = applicationName;
-	windowClass.cbSize = sizeof(WNDCLASSEX);
+    WNDCLASSEX windowClass;
+    windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    windowClass.lpfnWndProc = (WNDPROC)wndProc;
+    windowClass.cbClsExtra = 0;
+    windowClass.cbWndExtra = 0;
+    windowClass.hInstance = hInstance;
+    windowClass.hIcon = LoadIcon(NULL, IDI_WINLOGO);
+    windowClass.hIconSm = windowClass.hIcon;
+    windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+    windowClass.hbrBackground = NULL;
+    windowClass.lpszMenuName = NULL;
+    windowClass.lpszClassName = applicationName;
+    windowClass.cbSize = sizeof(WNDCLASSEX);
 
-	RegisterClassEx(&windowClass);
+    RegisterClassEx(&windowClass);
 
-	RECT winRect = { 0, 0, WIDTH, HEIGHT };
-	AdjustWindowRect(&winRect, WS_OVERLAPPEDWINDOW, FALSE);
+    RECT winRect = { 0, 0, WIDTH, HEIGHT };
+    AdjustWindowRect(&winRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-	HWND hWnd = CreateWindowEx(dwExStyle, applicationName, applicationName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, winRect.right - winRect.left, winRect.bottom - winRect.top, NULL, NULL, hInstance, NULL);
-	//SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
-	ShowWindow(hWnd, SW_SHOW);
-	SetForegroundWindow(hWnd);
-	SetFocus(hWnd);
+    HWND hWnd = CreateWindowEx(dwExStyle, applicationName, applicationName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, winRect.right - winRect.left, winRect.bottom - winRect.top, NULL, NULL, hInstance, NULL);
+    //SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
+    ShowWindow(hWnd, SW_SHOW);
+    SetForegroundWindow(hWnd);
+    SetFocus(hWnd);
 
-	VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
-	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-	surfaceCreateInfo.hinstance = hInstance;
-	surfaceCreateInfo.hwnd = hWnd;
-	vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
+    VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
+    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    surfaceCreateInfo.hinstance = hInstance;
+    surfaceCreateInfo.hwnd = hWnd;
+    vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
 #elif defined(__linux__)
     int screenp = 0;
     xcb_connection_t* connection = xcb_connect(nullptr, &screenp);
@@ -507,7 +507,7 @@ int main() {
     }
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
-	
+    
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -517,7 +517,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
-	
+    
     VkExtent2D swapExtent;
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
@@ -734,14 +734,14 @@ int main() {
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     std::vector<VkSemaphore> imageAvailableSemaphores(swapImageCount);
-	for (size_t index = 0; index < imageAvailableSemaphores.size(); ++index) {
-		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[index]);
-	}
+    for (size_t index = 0; index < imageAvailableSemaphores.size(); ++index) {
+        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[index]);
+    }
 
     std::vector<VkSemaphore> renderFinishedSemaphores(swapImageCount);
-	for (size_t index = 0; index < renderFinishedSemaphores.size(); ++index) {
-		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[index]);
-	}
+    for (size_t index = 0; index < renderFinishedSemaphores.size(); ++index) {
+        vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[index]);
+    }
 
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -752,7 +752,7 @@ int main() {
         vkCreateFence(device, &fenceCreateInfo, nullptr, &fences[fenceIndex]);
     }
 
-	bool running = true;
+    bool running = true;
 
 #ifdef WIN32
 #elif defined(__linux__)
@@ -773,19 +773,19 @@ int main() {
     xcb_client_message_event_t *cm;
 #endif
 
-	uint32_t frameIndex = 0;
+    uint32_t frameIndex = 0;
 
     while (running) {
 #ifdef WIN32
-		MSG msg;
-		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
 
-		if (msg.message == WM_QUIT) {
-			running = false;
-		}
+        if (msg.message == WM_QUIT) {
+            running = false;
+        }
 #elif defined(__linux__)
         while ((event = xcb_poll_for_event(connection)) != nullptr) {
             switch (event->response_type & ~0x80) {
@@ -816,9 +816,9 @@ int main() {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &renderFinishedSemaphores[frameIndex];
 
-		VkFence fence = fences[frameIndex];
-		vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-		vkResetFences(device, 1, &fence);
+        VkFence fence = fences[frameIndex];
+        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &fence);
 
         vkQueueSubmit(queue, 1, &submitInfo, fence);
 
@@ -832,7 +832,7 @@ int main() {
 
         vkQueuePresentKHR(queue, &presentInfo);
 
-		frameIndex = (frameIndex + 1) % swapImageCount;
+        frameIndex = (frameIndex + 1) % swapImageCount;
     }
 
 #ifdef WIN32

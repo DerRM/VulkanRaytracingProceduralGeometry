@@ -489,14 +489,14 @@ void CRayTracing::createPrimitives() {
 }
 
 void CRayTracing::createShaderStages() {
-    createShader(VK_SHADER_STAGE_RAYGEN_BIT_NV, "shader/raygen.spv");
-    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_triangle.spv");
-    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_aabb.spv");
-    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss.spv");
-    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss_shadow_ray.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_analytic.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_volumetric.spv");
-    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_signed_distance.spv");
+    createShader(VK_SHADER_STAGE_RAYGEN_BIT_NV, "shader/raygen_nv.spv");
+    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_triangle_nv.spv");
+    createShader(VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV, "shader/closest_hit_aabb_nv.spv");
+    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss_nv.spv");
+    createShader(VK_SHADER_STAGE_MISS_BIT_NV, "shader/miss_shadow_ray_nv.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_analytic_nv.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_volumetric_nv.spv");
+    createShader(VK_SHADER_STAGE_INTERSECTION_BIT_NV, "shader/intersection_signed_distance_nv.spv");
 }
 
 void CRayTracing::createRayGenShaderGroups() {

@@ -128,115 +128,164 @@ DEFINE_VK_FUNCTION(vkGetAccelerationStructureHandleNV);
 DEFINE_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
 DEFINE_VK_FUNCTION(vkCompileDeferredNV);
 
+/*
+ * Vulkan KHR Raytracing extension functions
+ */
+DEFINE_VK_FUNCTION(vkBindAccelerationStructureMemoryKHR);
+DEFINE_VK_FUNCTION(vkBuildAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructureIndirectKHR);
+DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCmdCopyAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCmdCopyAccelerationStructureToMemoryKHR);
+DEFINE_VK_FUNCTION(vkCmdCopyMemoryToAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCmdTraceRaysIndirectKHR);
+DEFINE_VK_FUNCTION(vkCmdTraceRaysKHR);
+DEFINE_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesKHR);
+DEFINE_VK_FUNCTION(vkCreateAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCreateRayTracingPipelinesKHR);
+DEFINE_VK_FUNCTION(vkCopyAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCopyAccelerationStructureToMemoryKHR);
+DEFINE_VK_FUNCTION(vkCopyMemoryToAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkDestroyAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkGetAccelerationStructureDeviceAddressKHR);
+DEFINE_VK_FUNCTION(vkGetAccelerationStructureMemoryRequirementsKHR);
+DEFINE_VK_FUNCTION(vkGetDeviceAccelerationStructureCompatibilityKHR);
+DEFINE_VK_FUNCTION(vkGetRayTracingCaptureReplayShaderGroupHandlesKHR);
+DEFINE_VK_FUNCTION(vkGetRayTracingShaderGroupHandlesKHR);
+DEFINE_VK_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+
 static void initVulkanDynamicLoadLibrary() {
 #if defined(WIN32)
-	HMODULE vulkanLibrary = LoadLibrary("vulkan-1.dll");
-	vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(vulkanLibrary, "vkGetInstanceProcAddr");
+    HMODULE vulkanLibrary = LoadLibrary("vulkan-1.dll");
+    vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(vulkanLibrary, "vkGetInstanceProcAddr");
 #elif defined(__linux__)
-	void* vulkanLibrary = dlopen("libvulkan.so", RTLD_NOW);
-	vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(vulkanLibrary, "vkGetInstanceProcAddr");
+    void* vulkanLibrary = dlopen("libvulkan.so", RTLD_NOW);
+    vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(vulkanLibrary, "vkGetInstanceProcAddr");
 #endif
 }
 
 CVulkanHelper::CVulkanHelper(VkInstance instance, VkDevice device, VkPhysicalDevice gpu)
     : m_instance(instance)
-	, m_device(device)
+    , m_device(device)
     , m_gpu(gpu)
 {
     vkGetPhysicalDeviceMemoryProperties(gpu, &m_gpuMemoryProperties);
 }
 
 void CVulkanHelper::initVulkan() {
-	initVulkanDynamicLoadLibrary();
+    initVulkanDynamicLoadLibrary();
 
-	INIT_VK_GLOBAL_FUNCTION(vkEnumerateInstanceLayerProperties);
-	INIT_VK_GLOBAL_FUNCTION(vkEnumerateInstanceExtensionProperties);
-	INIT_VK_GLOBAL_FUNCTION(vkCreateInstance);
+    INIT_VK_GLOBAL_FUNCTION(vkEnumerateInstanceLayerProperties);
+    INIT_VK_GLOBAL_FUNCTION(vkEnumerateInstanceExtensionProperties);
+    INIT_VK_GLOBAL_FUNCTION(vkCreateInstance);
 }
 
 void CVulkanHelper::initVulkanInstanceFunctions(VkInstance instance) {
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures2);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties2);
-	INIT_VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
-	INIT_VK_INSTANCE_FUNCTION(vkCreateDevice);
-	INIT_VK_INSTANCE_FUNCTION(vkGetDeviceProcAddr);
-	INIT_VK_INSTANCE_FUNCTION(vkEnumerateDeviceLayerProperties);
-	INIT_VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures2);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties2);
+    INIT_VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices);
+    INIT_VK_INSTANCE_FUNCTION(vkCreateDevice);
+    INIT_VK_INSTANCE_FUNCTION(vkGetDeviceProcAddr);
+    INIT_VK_INSTANCE_FUNCTION(vkEnumerateDeviceLayerProperties);
+    INIT_VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceMemoryProperties);
 
 
 #ifdef VK_USE_PLATFORM_WIN32_KHR
-	INIT_VK_INSTANCE_FUNCTION(vkCreateWin32SurfaceKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkCreateWin32SurfaceKHR);
 #endif
 
 #ifdef VK_USE_PLATFORM_XCB_KHR
-	INIT_VK_INSTANCE_FUNCTION(vkCreateXcbSurfaceKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkCreateXcbSurfaceKHR);
 #endif
 
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
-	INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+    INIT_VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR);
 }
 
 void CVulkanHelper::initVulkanDeviceFunctions(VkDevice device) {
-	INIT_VK_DEVICE_FUNCTION(vkCreateShaderModule);
-	INIT_VK_DEVICE_FUNCTION(vkMapMemory);
-	INIT_VK_DEVICE_FUNCTION(vkUnmapMemory);
-	INIT_VK_DEVICE_FUNCTION(vkCreateImage);
-	INIT_VK_DEVICE_FUNCTION(vkGetImageMemoryRequirements);
-	INIT_VK_DEVICE_FUNCTION(vkAllocateMemory);
-	INIT_VK_DEVICE_FUNCTION(vkBindImageMemory);
-	INIT_VK_DEVICE_FUNCTION(vkCreateImageView);
-	INIT_VK_DEVICE_FUNCTION(vkAllocateCommandBuffers);
-	INIT_VK_DEVICE_FUNCTION(vkBeginCommandBuffer);
-	INIT_VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
-	INIT_VK_DEVICE_FUNCTION(vkCmdPipelineBarrier);
-	INIT_VK_DEVICE_FUNCTION(vkEndCommandBuffer);
-	INIT_VK_DEVICE_FUNCTION(vkQueueSubmit);
-	INIT_VK_DEVICE_FUNCTION(vkQueueWaitIdle);
-	INIT_VK_DEVICE_FUNCTION(vkFreeCommandBuffers);
-	INIT_VK_DEVICE_FUNCTION(vkCreateBuffer);
-	INIT_VK_DEVICE_FUNCTION(vkGetBufferMemoryRequirements);
-	INIT_VK_DEVICE_FUNCTION(vkBindBufferMemory);
-	INIT_VK_DEVICE_FUNCTION(vkGetDeviceQueue);
-	INIT_VK_DEVICE_FUNCTION(vkCreateCommandPool);
-	INIT_VK_DEVICE_FUNCTION(vkCreateDescriptorPool);
-	INIT_VK_DEVICE_FUNCTION(vkCreateDescriptorSetLayout);
-	INIT_VK_DEVICE_FUNCTION(vkAllocateDescriptorSets);
-	INIT_VK_DEVICE_FUNCTION(vkCreatePipelineLayout);
-	INIT_VK_DEVICE_FUNCTION(vkCreateRenderPass);
-	INIT_VK_DEVICE_FUNCTION(vkCreateFramebuffer);
-	INIT_VK_DEVICE_FUNCTION(vkCmdBindPipeline);
-	INIT_VK_DEVICE_FUNCTION(vkCmdBindDescriptorSets);
-	INIT_VK_DEVICE_FUNCTION(vkCmdCopyImage);
-	INIT_VK_DEVICE_FUNCTION(vkCreateSemaphore);
-	INIT_VK_DEVICE_FUNCTION(vkCreateFence);
-	INIT_VK_DEVICE_FUNCTION(vkWaitForFences);
-	INIT_VK_DEVICE_FUNCTION(vkResetFences);
+    INIT_VK_DEVICE_FUNCTION(vkCreateShaderModule);
+    INIT_VK_DEVICE_FUNCTION(vkMapMemory);
+    INIT_VK_DEVICE_FUNCTION(vkUnmapMemory);
+    INIT_VK_DEVICE_FUNCTION(vkCreateImage);
+    INIT_VK_DEVICE_FUNCTION(vkGetImageMemoryRequirements);
+    INIT_VK_DEVICE_FUNCTION(vkAllocateMemory);
+    INIT_VK_DEVICE_FUNCTION(vkBindImageMemory);
+    INIT_VK_DEVICE_FUNCTION(vkCreateImageView);
+    INIT_VK_DEVICE_FUNCTION(vkAllocateCommandBuffers);
+    INIT_VK_DEVICE_FUNCTION(vkBeginCommandBuffer);
+    INIT_VK_DEVICE_FUNCTION(vkUpdateDescriptorSets);
+    INIT_VK_DEVICE_FUNCTION(vkCmdPipelineBarrier);
+    INIT_VK_DEVICE_FUNCTION(vkEndCommandBuffer);
+    INIT_VK_DEVICE_FUNCTION(vkQueueSubmit);
+    INIT_VK_DEVICE_FUNCTION(vkQueueWaitIdle);
+    INIT_VK_DEVICE_FUNCTION(vkFreeCommandBuffers);
+    INIT_VK_DEVICE_FUNCTION(vkCreateBuffer);
+    INIT_VK_DEVICE_FUNCTION(vkGetBufferMemoryRequirements);
+    INIT_VK_DEVICE_FUNCTION(vkBindBufferMemory);
+    INIT_VK_DEVICE_FUNCTION(vkGetDeviceQueue);
+    INIT_VK_DEVICE_FUNCTION(vkCreateCommandPool);
+    INIT_VK_DEVICE_FUNCTION(vkCreateDescriptorPool);
+    INIT_VK_DEVICE_FUNCTION(vkCreateDescriptorSetLayout);
+    INIT_VK_DEVICE_FUNCTION(vkAllocateDescriptorSets);
+    INIT_VK_DEVICE_FUNCTION(vkCreatePipelineLayout);
+    INIT_VK_DEVICE_FUNCTION(vkCreateRenderPass);
+    INIT_VK_DEVICE_FUNCTION(vkCreateFramebuffer);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBindPipeline);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBindDescriptorSets);
+    INIT_VK_DEVICE_FUNCTION(vkCmdCopyImage);
+    INIT_VK_DEVICE_FUNCTION(vkCreateSemaphore);
+    INIT_VK_DEVICE_FUNCTION(vkCreateFence);
+    INIT_VK_DEVICE_FUNCTION(vkWaitForFences);
+    INIT_VK_DEVICE_FUNCTION(vkResetFences);
 
 
-	INIT_VK_DEVICE_FUNCTION(vkCreateSwapchainKHR);
-	INIT_VK_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
-	INIT_VK_DEVICE_FUNCTION(vkAcquireNextImageKHR);
-	INIT_VK_DEVICE_FUNCTION(vkQueuePresentKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCreateSwapchainKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkAcquireNextImageKHR);
+    INIT_VK_DEVICE_FUNCTION(vkQueuePresentKHR);
 
 
-	INIT_VK_DEVICE_FUNCTION(vkCreateAccelerationStructureNV);
-	INIT_VK_DEVICE_FUNCTION(vkDestroyAccelerationStructureNV);
-	INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureMemoryRequirementsNV);
-	INIT_VK_DEVICE_FUNCTION(vkBindAccelerationStructureMemoryNV);
-	INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureNV);
-	INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureNV);
-	INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysNV);
-	INIT_VK_DEVICE_FUNCTION(vkCreateRayTracingPipelinesNV);
-	INIT_VK_DEVICE_FUNCTION(vkGetRayTracingShaderGroupHandlesNV);
-	INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureHandleNV);
-	INIT_VK_DEVICE_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
-	INIT_VK_DEVICE_FUNCTION(vkCompileDeferredNV);
+    INIT_VK_DEVICE_FUNCTION(vkCreateAccelerationStructureNV);
+    INIT_VK_DEVICE_FUNCTION(vkDestroyAccelerationStructureNV);
+    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureMemoryRequirementsNV);
+    INIT_VK_DEVICE_FUNCTION(vkBindAccelerationStructureMemoryNV);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureNV);
+    INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureNV);
+    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysNV);
+    INIT_VK_DEVICE_FUNCTION(vkCreateRayTracingPipelinesNV);
+    INIT_VK_DEVICE_FUNCTION(vkGetRayTracingShaderGroupHandlesNV);
+    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureHandleNV);
+    INIT_VK_DEVICE_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
+    INIT_VK_DEVICE_FUNCTION(vkCompileDeferredNV);
+
+    INIT_VK_DEVICE_FUNCTION(vkBindAccelerationStructureMemoryKHR);
+    INIT_VK_DEVICE_FUNCTION(vkBuildAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureIndirectKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureToMemoryKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdCopyMemoryToAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysIndirectKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCreateAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCreateRayTracingPipelinesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCopyAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCopyAccelerationStructureToMemoryKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCopyMemoryToAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkDestroyAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureDeviceAddressKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureMemoryRequirementsKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetDeviceAccelerationStructureCompatibilityKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetRayTracingCaptureReplayShaderGroupHandlesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetRayTracingShaderGroupHandlesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
 }
 
 uint32_t CVulkanHelper::getMemoryType(VkMemoryRequirements& memoryRequirements,

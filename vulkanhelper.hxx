@@ -148,8 +148,8 @@ class CVulkanHelper
 public:
     CVulkanHelper(VkInstance instance, VkDevice device, VkPhysicalDevice gpu);
     static void initVulkan();
-	static void initVulkanInstanceFunctions(VkInstance instance);
-	static void initVulkanDeviceFunctions(VkDevice device);
+    static void initVulkanInstanceFunctions(VkInstance instance);
+    static void initVulkanDeviceFunctions(VkDevice device);
     VulkanBuffer createBuffer(VkBufferUsageFlags usage,
                           VkDeviceSize size,
                           VkMemoryPropertyFlags memoryProperties);
@@ -158,7 +158,7 @@ public:
 
     void copyToBuffer(VulkanBuffer const& buffer, void* data, uint32_t size);
 private:
-	VkInstance m_instance;
+    VkInstance m_instance;
     VkDevice m_device;
     VkPhysicalDevice m_gpu;
     VkPhysicalDeviceMemoryProperties m_gpuMemoryProperties;
