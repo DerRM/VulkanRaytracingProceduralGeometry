@@ -408,7 +408,7 @@ int main() {
     vkUnmapMemory(device, groupBuffer.memory);
 */
 
-    const char* applicationName = "VulkanRendering";
+    const char* applicationName = "Vulkan Raytracing Example";
 
     VkSurfaceKHR surface;
 #ifdef WIN32
@@ -515,7 +515,7 @@ int main() {
     }
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
-    /*
+    
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -525,7 +525,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
-    */
+    
     VkExtent2D swapExtent;
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
