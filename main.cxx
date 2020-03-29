@@ -23,15 +23,6 @@
 #define WIDTH 1280
 #define HEIGHT 720
 
-struct VkGeometryInstanceNV {
-    float          transform[12];
-    uint32_t       instanceCustomIndex : 24;
-    uint32_t       mask : 8;
-    uint32_t       instanceOffset : 24;
-    uint32_t       flags : 8;
-    uint64_t       accelerationStructureHandle;
-};
-
 uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRequirements& memoryRequirements, VkMemoryPropertyFlags memoryProperties) {
     uint32_t memoryType = 0;
     for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < VK_MAX_MEMORY_TYPES; ++memoryTypeIndex) {
@@ -96,7 +87,7 @@ int main() {
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    appInfo.apiVersion = VK_API_VERSION_1_2;
     appInfo.applicationVersion = VK_MAKE_VERSION(1,0,0);
     appInfo.pApplicationName = "Something";
     appInfo.engineVersion = VK_MAKE_VERSION(1,0,0);
@@ -115,6 +106,14 @@ int main() {
     std::vector<const char*> enabledExtensions;
     enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
+    for (size_t layer_index = 0; layer_index < instanceLayerCount; ++layer_index) {
+
+        printf("Layer: %s, Spec Version: %d.%d.%d\n", instanceLayers[layer_index].layerName, 
+                                                      (instanceLayers[layer_index].specVersion >> 22) & 0x3ff,
+                                                      (instanceLayers[layer_index].specVersion >> 12) & 0x3ff,
+                                                      (instanceLayers[layer_index].specVersion >> 0) & 0xfff);
+    }
+
 #ifdef WIN32
     enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif defined(__linux__)
@@ -129,9 +128,9 @@ int main() {
 
     std::vector<const char*> enableValidationLayers;
 #ifdef _DEBUG
-    enableValidationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
+    enableValidationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
-    enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
+    //enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
 
     VkInstanceCreateInfo instanceInfo = {};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -198,18 +197,27 @@ int main() {
     std::vector<const char*> activatedDeviceExtensions;
     activatedDeviceExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    activatedDeviceExtensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
+    //activatedDeviceExtensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
+    activatedDeviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    activatedDeviceExtensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_KHR_RAY_TRACING_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     VkDevice device;
 
-    VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
-    descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+   // VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
+   // descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+
+    VkPhysicalDeviceRayTracingFeaturesKHR raytracingFeatures = {};
+    raytracingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_FEATURES_KHR;
+
+    VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+    vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12Features.pNext = &raytracingFeatures;
 
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features2.pNext = &descriptorIndexingFeatures;
+    features2.pNext = &vulkan12Features;
     vkGetPhysicalDeviceFeatures2(gpu, &features2);
 
     VkDeviceCreateInfo deviceCreateInfo = {};
@@ -243,7 +251,7 @@ int main() {
     std::vector<VkDescriptorPoolSize> poolSizes;
 
     VkDescriptorPoolSize poolSize0 = {};
-    poolSize0.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
+    poolSize0.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     poolSize0.descriptorCount = 2;
 
     poolSizes.push_back(poolSize0);
@@ -275,8 +283,8 @@ int main() {
     VkDescriptorPool descriptorPool;
     vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool);
 
-    VkPhysicalDeviceRayTracingPropertiesNV raytracingProperties = {};
-    raytracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
+    VkPhysicalDeviceRayTracingPropertiesKHR raytracingProperties = {};
+    raytracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_KHR;
 
     VkPhysicalDeviceProperties2 props = {};
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
@@ -297,9 +305,9 @@ int main() {
 
     VkDescriptorSetLayoutBinding layoutbindingAccelerationStructure = {};
     layoutbindingAccelerationStructure.binding = 0;
-    layoutbindingAccelerationStructure.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
+    layoutbindingAccelerationStructure.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     layoutbindingAccelerationStructure.descriptorCount = 1;
-    layoutbindingAccelerationStructure.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+    layoutbindingAccelerationStructure.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingAccelerationStructure);
 
@@ -307,7 +315,7 @@ int main() {
     layoutbindingOuputImage.binding = 1;
     layoutbindingOuputImage.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     layoutbindingOuputImage.descriptorCount = 1;
-    layoutbindingOuputImage.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+    layoutbindingOuputImage.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingOuputImage);
 
@@ -315,7 +323,7 @@ int main() {
     layoutbindingSceneBuffer.binding = 2;
     layoutbindingSceneBuffer.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutbindingSceneBuffer.descriptorCount = 1;
-    layoutbindingSceneBuffer.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV | VK_SHADER_STAGE_INTERSECTION_BIT_NV;
+    layoutbindingSceneBuffer.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingSceneBuffer);
 
@@ -323,7 +331,7 @@ int main() {
     layoutbindingFacesBuffer.binding = 3;
     layoutbindingFacesBuffer.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutbindingFacesBuffer.descriptorCount = 1;
-    layoutbindingFacesBuffer.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+    layoutbindingFacesBuffer.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingFacesBuffer);
 
@@ -331,7 +339,7 @@ int main() {
     layoutbindingNormalBuffer.binding = 4;
     layoutbindingNormalBuffer.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutbindingNormalBuffer.descriptorCount = 1;
-    layoutbindingNormalBuffer.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+    layoutbindingNormalBuffer.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingNormalBuffer);
 
@@ -339,7 +347,7 @@ int main() {
     layoutbindingAABBPrimitiveBuffer.binding = 5;
     layoutbindingAABBPrimitiveBuffer.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutbindingAABBPrimitiveBuffer.descriptorCount = 1;
-    layoutbindingAABBPrimitiveBuffer.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV | VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV | VK_SHADER_STAGE_INTERSECTION_BIT_NV;
+    layoutbindingAABBPrimitiveBuffer.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
 
     layoutbindings.push_back(layoutbindingAABBPrimitiveBuffer);
 
@@ -648,8 +656,25 @@ int main() {
     vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers.data());
 
     VulkanBuffer raygenShaderGroup = rayTracing.getRayGenShaderGroups();
-    //VulkanBuffer missShaderGroup = rayTracing.getMissShaderGroups();
-    //VulkanBuffer hitShaderGroup = rayTracing.getHitShaderGroups();
+    VkStridedBufferRegionKHR raygenStridedBufferRegion = {};
+    raygenStridedBufferRegion.buffer = raygenShaderGroup.handle;
+    raygenStridedBufferRegion.size = raygenShaderGroup.size;
+    raygenStridedBufferRegion.offset = 0;
+
+    VkStridedBufferRegionKHR missStridedBufferRegion = {};
+    missStridedBufferRegion.buffer = raygenShaderGroup.handle;
+    missStridedBufferRegion.size = raygenShaderGroup.size;
+    missStridedBufferRegion.offset = raytracingProperties.shaderGroupHandleSize;
+    missStridedBufferRegion.stride = raytracingProperties.shaderGroupHandleSize;
+
+    VkStridedBufferRegionKHR hitStridedBufferRegion = {};
+    hitStridedBufferRegion.buffer = raygenShaderGroup.handle;
+    hitStridedBufferRegion.size = raygenShaderGroup.size;
+    hitStridedBufferRegion.offset = 3 * raytracingProperties.shaderGroupHandleSize;
+    hitStridedBufferRegion.stride = (raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
+
+    VkStridedBufferRegionKHR callableStridedBufferRegion = {};
+    callableStridedBufferRegion.buffer = VK_NULL_HANDLE;
 
     for (size_t commandBufferIndex = 0; commandBufferIndex < commandBuffers.size(); ++commandBufferIndex) {
 
@@ -679,14 +704,14 @@ int main() {
 
         vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
-        vkCmdBindPipeline(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, raytracingPipeline);
-        vkCmdBindDescriptorSets(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+        vkCmdBindPipeline(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
+        vkCmdBindDescriptorSets(commandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
-        vkCmdTraceRaysNV(commandBuffers[commandBufferIndex],
-                       raygenShaderGroup.handle, 0,
-                       raygenShaderGroup.handle, 1 * raytracingProperties.shaderGroupHandleSize, raytracingProperties.shaderGroupHandleSize,
-                       raygenShaderGroup.handle, 3 * raytracingProperties.shaderGroupHandleSize, (raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)),
-                       VK_NULL_HANDLE, 0, 0,
+        vkCmdTraceRaysKHR(commandBuffers[commandBufferIndex],
+                       &raygenStridedBufferRegion,
+                       &missStridedBufferRegion,
+                       &hitStridedBufferRegion,
+                       &callableStridedBufferRegion,
                        WIDTH, HEIGHT, 1);
 
         imageMemoryBarrier.srcAccessMask = 0;
@@ -707,7 +732,7 @@ int main() {
         imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imageMemoryBarrier.image = offscreenImage.handle;
         imageMemoryBarrier.subresourceRange = subresourceRange;
-        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+        vkCmdPipelineBarrier(commandBuffers[commandBufferIndex], VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
         VkImageCopy copyRegion;
         copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };

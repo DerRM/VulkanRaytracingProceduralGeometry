@@ -5,11 +5,19 @@
 #define VK_ENABLE_BETA_EXTENSIONS
 #include <vulkan/vulkan.h>
 
+#define VK_CHECK(func) \
+do { \
+    VkResult res = (func); \
+    if (res != VK_SUCCESS) { \
+        printf("function %s failed with %d\n", #func, res); \
+    } \
+} while(0)
+
 #define EXTERN_VK_FUNCTION(name) \
 extern PFN_##name name
 
 /*
- * Vulkan Core functions
+ * Vulkan 1.2 Core functions
  */
 
 EXTERN_VK_FUNCTION(vkGetInstanceProcAddr);
@@ -61,6 +69,8 @@ EXTERN_VK_FUNCTION(vkCreateSemaphore);
 EXTERN_VK_FUNCTION(vkCreateFence);
 EXTERN_VK_FUNCTION(vkWaitForFences);
 EXTERN_VK_FUNCTION(vkResetFences);
+EXTERN_VK_FUNCTION(vkGetBufferDeviceAddress);
+EXTERN_VK_FUNCTION(vkDestroyFence);
 
 /*
  * Vulkan WSI functions
@@ -132,6 +142,7 @@ struct VulkanBuffer {
     VkBuffer handle;
     VkDeviceMemory memory;
     VkDeviceSize size;
+    VkDeviceAddress address;
 };
 
 struct VulkanImage {

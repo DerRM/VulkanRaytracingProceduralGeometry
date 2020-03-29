@@ -10,15 +10,15 @@
 #include "raytracingscenedefines.hxx"
 
 struct BottomLevelAccelerationStructure {
-    VkAccelerationStructureNV handle;
+    VkAccelerationStructureKHR handle;
     VkDeviceMemory memory;
-    uint64_t gpuHandle;
+    VkDeviceAddress gpuAddress;
 };
 
 class CRayTracing
 {
 public:
-    CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesNV const& raytracingProperties);
+    CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesKHR const& raytracingProperties);
     void init();
     void initScene();
     VkPipeline createPipeline(VkPipelineLayout pipelineLayout);
@@ -37,7 +37,7 @@ public:
     void buildPlaneGeometry();
     void buildTriangleAccelerationStructure();
     void buildAccelerationStructurePlane();
-    BottomLevelAccelerationStructure createBottomLevelAccelerationStructure(VkGeometryNV* geometry, uint32_t geometryCount, VkBuildAccelerationStructureFlagsNV buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_NV);
+    BottomLevelAccelerationStructure createBottomLevelAccelerationStructure(VkAccelerationStructureCreateGeometryTypeInfoKHR* geometry, uint32_t geometryCount, VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 
     void updateDescriptors(VkDescriptorSet descriptorSet);
     VulkanImage createOffscreenImage(VkFormat format, uint32_t width, uint32_t height);
@@ -66,14 +66,14 @@ private:
     VkQueue m_queue;
     VkCommandPool m_commandPool;
     CVulkanHelper m_helper;
-    VkPhysicalDeviceRayTracingPropertiesNV const& m_raytracingProperties;
+    VkPhysicalDeviceRayTracingPropertiesKHR const& m_raytracingProperties;
     //std::vector<CShader> m_shaders;
     std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages;
-    std::vector<VkRayTracingShaderGroupCreateInfoNV> m_shaderGroups;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_shaderGroups;
 
-    std::vector<VkRayTracingShaderGroupCreateInfoNV> m_rayGenShaderGroups;
-    std::vector<VkRayTracingShaderGroupCreateInfoNV> m_missShaderGroups;
-    std::vector<VkRayTracingShaderGroupCreateInfoNV> m_hitShaderGroups;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_rayGenShaderGroups;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_missShaderGroups;
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_hitShaderGroups;
 
 
     //VkShaderStageFlagBits shaderType2ShaderStage(CShader::EShaderType type);
@@ -85,7 +85,7 @@ private:
     float const kAabbDistance = 2.0f;
 
     float m_aspectRatio = 1280.0f / 720.0f;
-    std::vector<AABB> m_aabbs;
+    std::vector<VkAabbPositionsKHR> m_aabbs;
 
     SceneConstantBuffer m_sceneCB;
 
@@ -111,8 +111,8 @@ private:
 
     VulkanImage m_offscreenImage;
 
-    VkAccelerationStructureNV m_bottomLevelAS[BottomLevelASType::Count];
-    VkAccelerationStructureNV m_topLevelAs;
+    VkAccelerationStructureKHR m_bottomLevelAS[BottomLevelASType::Count];
+    VkAccelerationStructureKHR m_topLevelAs;
 
     VkPipeline m_raytracingPipeline;
 

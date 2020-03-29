@@ -5,12 +5,6 @@
 
 #include <algorithm>
 
-struct AABB
-{
-    float minX, minY, minZ;
-    float maxX, maxY, maxZ;
-};
-
 namespace GeometryType {
     enum Enum {
         Triangle = 0,

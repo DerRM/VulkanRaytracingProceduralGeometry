@@ -87,6 +87,8 @@ DEFINE_VK_FUNCTION(vkCreateSemaphore);
 DEFINE_VK_FUNCTION(vkCreateFence);
 DEFINE_VK_FUNCTION(vkWaitForFences);
 DEFINE_VK_FUNCTION(vkResetFences);
+DEFINE_VK_FUNCTION(vkGetBufferDeviceAddress);
+DEFINE_VK_FUNCTION(vkDestroyFence);
 
 /*
  * Vulkan WSI functions
@@ -243,7 +245,8 @@ void CVulkanHelper::initVulkanDeviceFunctions(VkDevice device) {
     INIT_VK_DEVICE_FUNCTION(vkCreateFence);
     INIT_VK_DEVICE_FUNCTION(vkWaitForFences);
     INIT_VK_DEVICE_FUNCTION(vkResetFences);
-
+    INIT_VK_DEVICE_FUNCTION(vkGetBufferDeviceAddress);
+    INIT_VK_DEVICE_FUNCTION(vkDestroyFence);
 
     INIT_VK_DEVICE_FUNCTION(vkCreateSwapchainKHR);
     INIT_VK_DEVICE_FUNCTION(vkGetSwapchainImagesKHR);
@@ -320,7 +323,12 @@ VulkanBuffer CVulkanHelper::createBuffer(VkBufferUsageFlags usage,
 
     uint32_t memoryType = getMemoryType(bufferMemoryRequirements, memoryProperties);
 
+    VkMemoryAllocateFlagsInfo memoryAllocFlagsInfo = {};
+    memoryAllocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+    memoryAllocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+
     VkMemoryAllocateInfo memoryAllocInfo = {};
+    memoryAllocInfo.pNext = &memoryAllocFlagsInfo;
     memoryAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memoryAllocInfo.allocationSize = bufferMemoryRequirements.size;
     memoryAllocInfo.memoryTypeIndex = memoryType;
@@ -329,7 +337,14 @@ VulkanBuffer CVulkanHelper::createBuffer(VkBufferUsageFlags usage,
     vkAllocateMemory(m_device, &memoryAllocInfo, nullptr, &bufferMemory);
 
     vkBindBufferMemory(m_device, buffer, bufferMemory, 0);
-    return {buffer, bufferMemory, size};
+
+    VkBufferDeviceAddressInfo bufferDeviceAddressInfo = {};
+    bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    bufferDeviceAddressInfo.buffer = buffer;
+
+    VkDeviceAddress address = vkGetBufferDeviceAddress(m_device, &bufferDeviceAddressInfo);
+
+    return {buffer, bufferMemory, size, address};
 }
 
 void CVulkanHelper::copyToBuffer(const VulkanBuffer &buffer, void* data, uint32_t size) {
