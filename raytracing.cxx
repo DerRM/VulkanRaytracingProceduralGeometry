@@ -891,9 +891,9 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
         //VK_CHECK(vkBuildAccelerationStructureKHR(m_device, 1, &asBuildInfo, asOffsetInfos.data()));
         vkCmdBuildAccelerationStructureKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
+        
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     }
-
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
     {
         std::vector<VkAccelerationStructureGeometryKHR> topLevelGeometries({topLevelGeometry});
