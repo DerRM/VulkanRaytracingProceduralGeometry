@@ -120,7 +120,7 @@ private:
     glm::vec4 m_at;
     glm::vec4 m_up;
 
-    bool m_animateCamera = false;
+    bool m_animateCamera = true;
     bool m_animateLight = false;
 };
 

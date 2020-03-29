@@ -130,7 +130,7 @@ int main() {
 #ifdef _DEBUG
     enableValidationLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
-    //enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
+    enableValidationLayers.push_back("VK_LAYER_LUNARG_monitor");
 
     VkInstanceCreateInfo instanceInfo = {};
     instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -515,7 +515,7 @@ int main() {
     }
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
-    
+    /*
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -525,7 +525,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
-    
+    */
     VkExtent2D swapExtent;
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
