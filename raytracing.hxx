@@ -10,15 +10,15 @@
 #include "raytracingscenedefines.hxx"
 
 struct BottomLevelAccelerationStructure {
+    VulkanBuffer buffer;
     VkAccelerationStructureKHR handle;
-    VkDeviceMemory memory;
     VkDeviceAddress gpuAddress;
 };
 
 class CRayTracing
 {
 public:
-    CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesKHR const& raytracingProperties);
+    CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPipelinePropertiesKHR const& raytracingPipelineProperties);
     void init();
     void initScene();
     VkPipeline createPipeline(VkPipelineLayout pipelineLayout);
@@ -37,7 +37,7 @@ public:
     void buildPlaneGeometry();
     void buildTriangleAccelerationStructure();
     void buildAccelerationStructurePlane();
-    BottomLevelAccelerationStructure createBottomLevelAccelerationStructure(VkAccelerationStructureCreateGeometryTypeInfoKHR* geometry, uint32_t geometryCount, VkBuildAccelerationStructureFlagsKHR buildFlags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+    BottomLevelAccelerationStructure createBottomLevelAccelerationStructure(VkAccelerationStructureBuildSizesInfoKHR const& asBuildSizes);
 
     void updateDescriptors(VkDescriptorSet descriptorSet);
     VulkanImage createOffscreenImage(VkFormat format, uint32_t width, uint32_t height);
@@ -66,7 +66,7 @@ private:
     VkQueue m_queue;
     VkCommandPool m_commandPool;
     CVulkanHelper m_helper;
-    VkPhysicalDeviceRayTracingPropertiesKHR const& m_raytracingProperties;
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR const& m_raytracingPipelineProperties;
     //std::vector<CShader> m_shaders;
     std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages;
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_shaderGroups;

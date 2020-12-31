@@ -131,30 +131,35 @@ DEFINE_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
 DEFINE_VK_FUNCTION(vkCompileDeferredNV);
 
 /*
- * Vulkan KHR Raytracing extension functions
+ * Vulkan KHR Acceleration Structure extension functions
  */
-DEFINE_VK_FUNCTION(vkBindAccelerationStructureMemoryKHR);
-DEFINE_VK_FUNCTION(vkBuildAccelerationStructureKHR);
-DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructureIndirectKHR);
-DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkBuildAccelerationStructuresKHR);
+DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructuresIndirectKHR);
+DEFINE_VK_FUNCTION(vkCmdBuildAccelerationStructuresKHR);
 DEFINE_VK_FUNCTION(vkCmdCopyAccelerationStructureKHR);
 DEFINE_VK_FUNCTION(vkCmdCopyAccelerationStructureToMemoryKHR);
 DEFINE_VK_FUNCTION(vkCmdCopyMemoryToAccelerationStructureKHR);
-DEFINE_VK_FUNCTION(vkCmdTraceRaysIndirectKHR);
-DEFINE_VK_FUNCTION(vkCmdTraceRaysKHR);
 DEFINE_VK_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesKHR);
-DEFINE_VK_FUNCTION(vkCreateAccelerationStructureKHR);
-DEFINE_VK_FUNCTION(vkCreateRayTracingPipelinesKHR);
 DEFINE_VK_FUNCTION(vkCopyAccelerationStructureKHR);
 DEFINE_VK_FUNCTION(vkCopyAccelerationStructureToMemoryKHR);
 DEFINE_VK_FUNCTION(vkCopyMemoryToAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkCreateAccelerationStructureKHR);
 DEFINE_VK_FUNCTION(vkDestroyAccelerationStructureKHR);
+DEFINE_VK_FUNCTION(vkGetAccelerationStructureBuildSizesKHR);
 DEFINE_VK_FUNCTION(vkGetAccelerationStructureDeviceAddressKHR);
-DEFINE_VK_FUNCTION(vkGetAccelerationStructureMemoryRequirementsKHR);
 DEFINE_VK_FUNCTION(vkGetDeviceAccelerationStructureCompatibilityKHR);
+DEFINE_VK_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+
+/*
+ * Vulkan KHR Ray Tracing Pipeline extension functions
+ */
+DEFINE_VK_FUNCTION(vkCmdSetRayTracingPipelineStackSizeKHR);
+DEFINE_VK_FUNCTION(vkCmdTraceRaysIndirectKHR);
+DEFINE_VK_FUNCTION(vkCmdTraceRaysKHR);
+DEFINE_VK_FUNCTION(vkCreateRayTracingPipelinesKHR);
 DEFINE_VK_FUNCTION(vkGetRayTracingCaptureReplayShaderGroupHandlesKHR);
 DEFINE_VK_FUNCTION(vkGetRayTracingShaderGroupHandlesKHR);
-DEFINE_VK_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+DEFINE_VK_FUNCTION(vkGetRayTracingShaderGroupStackSizeKHR);
 
 static void initVulkanDynamicLoadLibrary() {
 #if defined(WIN32)
@@ -267,28 +272,30 @@ void CVulkanHelper::initVulkanDeviceFunctions(VkDevice device) {
     INIT_VK_DEVICE_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesNV);
     INIT_VK_DEVICE_FUNCTION(vkCompileDeferredNV);
 
-    INIT_VK_DEVICE_FUNCTION(vkBindAccelerationStructureMemoryKHR);
-    INIT_VK_DEVICE_FUNCTION(vkBuildAccelerationStructureKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureIndirectKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkBuildAccelerationStructuresKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructuresIndirectKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdBuildAccelerationStructuresKHR);
     INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureKHR);
     INIT_VK_DEVICE_FUNCTION(vkCmdCopyAccelerationStructureToMemoryKHR);
     INIT_VK_DEVICE_FUNCTION(vkCmdCopyMemoryToAccelerationStructureKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysIndirectKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysKHR);
     INIT_VK_DEVICE_FUNCTION(vkCmdWriteAccelerationStructuresPropertiesKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCreateAccelerationStructureKHR);
-    INIT_VK_DEVICE_FUNCTION(vkCreateRayTracingPipelinesKHR);
     INIT_VK_DEVICE_FUNCTION(vkCopyAccelerationStructureKHR);
     INIT_VK_DEVICE_FUNCTION(vkCopyAccelerationStructureToMemoryKHR);
     INIT_VK_DEVICE_FUNCTION(vkCopyMemoryToAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCreateAccelerationStructureKHR);
     INIT_VK_DEVICE_FUNCTION(vkDestroyAccelerationStructureKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureBuildSizesKHR);
     INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureDeviceAddressKHR);
-    INIT_VK_DEVICE_FUNCTION(vkGetAccelerationStructureMemoryRequirementsKHR);
     INIT_VK_DEVICE_FUNCTION(vkGetDeviceAccelerationStructureCompatibilityKHR);
+    INIT_VK_DEVICE_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+
+    INIT_VK_DEVICE_FUNCTION(vkCmdSetRayTracingPipelineStackSizeKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysIndirectKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCmdTraceRaysKHR);
+    INIT_VK_DEVICE_FUNCTION(vkCreateRayTracingPipelinesKHR);
     INIT_VK_DEVICE_FUNCTION(vkGetRayTracingCaptureReplayShaderGroupHandlesKHR);
     INIT_VK_DEVICE_FUNCTION(vkGetRayTracingShaderGroupHandlesKHR);
-    INIT_VK_DEVICE_FUNCTION(vkWriteAccelerationStructuresPropertiesKHR);
+    INIT_VK_DEVICE_FUNCTION(vkGetRayTracingShaderGroupStackSizeKHR);
 }
 
 uint32_t CVulkanHelper::getMemoryType(VkMemoryRequirements& memoryRequirements,

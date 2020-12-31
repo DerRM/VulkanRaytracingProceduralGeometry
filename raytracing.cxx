@@ -4,14 +4,14 @@
 #include <iostream>
 #include <fstream>
 
-CRayTracing::CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPropertiesKHR const& raytracingProperties)
+CRayTracing::CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPipelinePropertiesKHR const& raytracingProperties)
     : m_instance(instance)
 	, m_device(device)
     , m_gpu(gpu)
     , m_queue(queue)
     , m_commandPool(commandPool)
     , m_helper(CVulkanHelper(instance, device, gpu))
-    , m_raytracingProperties(raytracingProperties)
+    , m_raytracingPipelineProperties(raytracingProperties)
 {
 }
 
@@ -204,7 +204,7 @@ VkPipeline CRayTracing::createPipeline(VkPipelineLayout pipelineLayout) {
 
     VkRayTracingPipelineCreateInfoKHR raytracingPipelineInfo = {};
     raytracingPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-    raytracingPipelineInfo.maxRecursionDepth = 3;
+    raytracingPipelineInfo.maxPipelineRayRecursionDepth = 3;
     raytracingPipelineInfo.stageCount = static_cast<uint32_t>(m_shaderStages.size());
     raytracingPipelineInfo.pStages = m_shaderStages.data();
     raytracingPipelineInfo.groupCount = static_cast<uint32_t>(m_shaderGroups.size());
@@ -212,10 +212,8 @@ VkPipeline CRayTracing::createPipeline(VkPipelineLayout pipelineLayout) {
     raytracingPipelineInfo.layout = pipelineLayout;
     raytracingPipelineInfo.basePipelineIndex = 0;
     raytracingPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-    raytracingPipelineInfo.libraries = {};
-    raytracingPipelineInfo.libraries.sType = VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR;
 
-    vkCreateRayTracingPipelinesKHR(m_device, VK_NULL_HANDLE, 1, &raytracingPipelineInfo, nullptr, &m_raytracingPipeline);
+    vkCreateRayTracingPipelinesKHR(m_device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &raytracingPipelineInfo, nullptr, &m_raytracingPipeline);
 
     createRayGenShaderTable();
     //createMissShaderTable();
@@ -237,26 +235,29 @@ VulkanBuffer CRayTracing::getHitShaderGroups() {
 }
 
 void CRayTracing::createRayGenShaderTable() {
-    VkDeviceSize bufferSize = m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size() + m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size() + (m_raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_aabbs.size();
+    VkDeviceSize bufferSize =
+            m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size()
+            + m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size()
+            + (m_raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_aabbs.size();
     m_raygenShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* data = nullptr;
     vkMapMemory(m_device, m_raygenShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
-    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, 0, static_cast<uint32_t>(m_rayGenShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), mappedMemory));
-    mappedMemory += m_raytracingProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size();
-    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size(), mappedMemory));
-    mappedMemory += m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size();
-    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory));
-    mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, 0, static_cast<uint32_t>(m_rayGenShaderGroups.size()), m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), mappedMemory));
+    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size();
+    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size(), mappedMemory));
+    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size();
+    VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), 1, m_raytracingPipelineProperties.shaderGroupHandleSize, mappedMemory));
+    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
     memcpy(mappedMemory, &m_planeMaterialCB, sizeof(PrimitiveConstantBuffer));
     mappedMemory += sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer);
 
     uint32_t offset = 0;
 
     for (size_t index = 0; index < AnalyticPrimitive::Count; ++index) {
-        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 1), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory));
-        mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 1), 1, m_raytracingPipelineProperties.shaderGroupHandleSize, mappedMemory));
+        mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
         memcpy(mappedMemory, &m_aabbInstanceCB[index + offset], sizeof(PrimitiveInstanceConstantBuffer));
@@ -266,8 +267,8 @@ void CRayTracing::createRayGenShaderTable() {
     offset += AnalyticPrimitive::Count;
 
     for (size_t index = 0; index < VolumetricPrimitive::Count; ++index) {
-        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 2), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory));
-        mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 2), 1, m_raytracingPipelineProperties.shaderGroupHandleSize, mappedMemory));
+        mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
         memcpy(mappedMemory, &m_aabbInstanceCB[index + offset], sizeof(PrimitiveInstanceConstantBuffer));
@@ -277,8 +278,8 @@ void CRayTracing::createRayGenShaderTable() {
     offset += VolumetricPrimitive::Count;
 
     for (size_t index = 0; index < SignedDistancePrimitive::Count; ++index) {
-        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 3), 1, m_raytracingProperties.shaderGroupHandleSize, mappedMemory));
-        mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+        VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() + 3), 1, m_raytracingPipelineProperties.shaderGroupHandleSize, mappedMemory));
+        mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[index + offset], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(m_aabbMaterialCB[0]);
         memcpy(mappedMemory, &m_aabbInstanceCB[index + offset], sizeof(PrimitiveInstanceConstantBuffer));
@@ -289,7 +290,7 @@ void CRayTracing::createRayGenShaderTable() {
 }
 
 void CRayTracing::createMissShaderTable() {
-    VkDeviceSize bufferSize = m_raytracingProperties.shaderGroupHandleSize * m_missShaderGroups.size();
+    VkDeviceSize bufferSize = m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size();
     m_missShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     void* data = nullptr;
@@ -300,21 +301,21 @@ void CRayTracing::createMissShaderTable() {
 }
 
 void CRayTracing::createHitShaderTable() {
-    VkDeviceSize bufferSize = (m_raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_hitShaderGroups.size();
+    VkDeviceSize bufferSize = (m_raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_hitShaderGroups.size();
     m_hitShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     void* data = nullptr;
     vkMapMemory(m_device, m_hitShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
 
-    vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
-    mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+    vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), m_raytracingPipelineProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
+    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
     memcpy(mappedMemory, &m_planeMaterialCB, sizeof(PrimitiveConstantBuffer));
     mappedMemory += sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer);
 
     //for (size_t index = 1; index < m_hitShaderGroups.size(); ++index) {
-        vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() /*+ index*/ + 1), m_raytracingProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
-        mappedMemory += m_raytracingProperties.shaderGroupHandleSize;
+        vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size() /*+ index*/ + 1), m_raytracingPipelineProperties.shaderGroupHandleSize, bufferSize, mappedMemory);
+        mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
         memcpy(mappedMemory, &m_aabbMaterialCB[/*index - 1*/2], sizeof(PrimitiveConstantBuffer));
         mappedMemory += sizeof(PrimitiveConstantBuffer);
         memcpy(mappedMemory, &m_aabbInstanceCB[/*index - 1*/2], sizeof(PrimitiveInstanceConstantBuffer));
@@ -582,45 +583,25 @@ void CRayTracing::buildAccelerationStructurePlane() {
 
 }
 
-BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStructure(VkAccelerationStructureCreateGeometryTypeInfoKHR* geometryInfo, uint32_t geometryCount, VkBuildAccelerationStructureFlagsKHR buildFlags) {
+BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStructure(VkAccelerationStructureBuildSizesInfoKHR const& asBuildSizes) {
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.size = asBuildSizes.accelerationStructureSize;
+
+    VulkanBuffer accelerationBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, asBuildSizes.accelerationStructureSize, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkAccelerationStructureCreateInfoKHR accelerationStructureInfo = {};
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
     accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-    accelerationStructureInfo.maxGeometryCount = geometryCount;
-    accelerationStructureInfo.flags = buildFlags;
-    accelerationStructureInfo.pGeometryInfos = geometryInfo;
-    accelerationStructureInfo.compactedSize = 0;
+    accelerationStructureInfo.buffer = accelerationBuffer.handle;
+    accelerationStructureInfo.offset = 0;
+    accelerationStructureInfo.size = asBuildSizes.accelerationStructureSize;
 
     VkAccelerationStructureKHR accelerationStructure;
     VK_CHECK(vkCreateAccelerationStructureKHR(m_device, &accelerationStructureInfo, nullptr, &accelerationStructure));
-
-    VkAccelerationStructureMemoryRequirementsInfoKHR bottomAccMemoryReqInfo = {};
-    bottomAccMemoryReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR;
-    bottomAccMemoryReqInfo.accelerationStructure = accelerationStructure;
-    bottomAccMemoryReqInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_KHR;
-
-    VkMemoryRequirements2 bottomAccMemoryReq = {};
-    bottomAccMemoryReq.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &bottomAccMemoryReqInfo, &bottomAccMemoryReq);
-
-    VkMemoryAllocateInfo bottomAccMemAlloc = {};
-    bottomAccMemAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    bottomAccMemAlloc.allocationSize = bottomAccMemoryReq.memoryRequirements.size;
-    bottomAccMemAlloc.memoryTypeIndex = m_helper.getMemoryType(bottomAccMemoryReq.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkDeviceMemory bottomAccMemory;
-    VK_CHECK(vkAllocateMemory(m_device, &bottomAccMemAlloc, nullptr, &bottomAccMemory));
-
-    VkBindAccelerationStructureMemoryInfoKHR bottomAccBindMemoryInfo = {};
-    bottomAccBindMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR;
-    bottomAccBindMemoryInfo.accelerationStructure = accelerationStructure;
-    bottomAccBindMemoryInfo.memory = bottomAccMemory;
-    bottomAccBindMemoryInfo.memoryOffset = 0;
-    bottomAccBindMemoryInfo.deviceIndexCount = 0;
-    bottomAccBindMemoryInfo.pDeviceIndices = nullptr;
-
-    VK_CHECK(vkBindAccelerationStructureMemoryKHR(m_device, 1, &bottomAccBindMemoryInfo));
 
     VkAccelerationStructureDeviceAddressInfoKHR accDeviceAddressInfo = {};
     accDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -629,8 +610,8 @@ BottomLevelAccelerationStructure CRayTracing::createBottomLevelAccelerationStruc
     VkDeviceAddress accelerationStructureHandle = vkGetAccelerationStructureDeviceAddressKHR(m_device, &accDeviceAddressInfo);    
 
     BottomLevelAccelerationStructure accStruct = {};
+    accStruct.buffer = accelerationBuffer;
     accStruct.handle = accelerationStructure;
-    accStruct.memory = bottomAccMemory;
     accStruct.gpuAddress = accelerationStructureHandle;
     return accStruct;
 }
@@ -652,53 +633,48 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     triangleGeometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     triangleGeometry.geometry.triangles.indexData.deviceAddress = m_indexBuffer.address;
     triangleGeometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT16;
+    triangleGeometry.geometry.triangles.maxVertex = 4;
 
-    VkAccelerationStructureCreateGeometryTypeInfoKHR triangleGeometryInfo = {};
-    triangleGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR;
-    triangleGeometryInfo.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
-    triangleGeometryInfo.maxPrimitiveCount = 2;
-    triangleGeometryInfo.indexType = triangleGeometry.geometry.triangles.indexType;
-    triangleGeometryInfo.maxVertexCount = 4;
-    triangleGeometryInfo.vertexFormat = triangleGeometry.geometry.triangles.vertexFormat;
-    triangleGeometryInfo.allowsTransforms = VK_FALSE;
+    VkAccelerationStructureBuildGeometryInfoKHR triangleGeometryInfo = {};
+    triangleGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+    triangleGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    triangleGeometryInfo.geometryCount = 1;
+    triangleGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    triangleGeometryInfo.pGeometries = &triangleGeometry;
 
-    VkAccelerationStructureBuildOffsetInfoKHR triangleBuildOffsetInfo = {};
-    triangleBuildOffsetInfo.primitiveCount = 2;
-    triangleBuildOffsetInfo.primitiveOffset = 0;
-    triangleBuildOffsetInfo.firstVertex = 0;
-    triangleBuildOffsetInfo.transformOffset = 0;
+    VkAccelerationStructureBuildSizesInfoKHR triangleAccelerationStructureSizes;
+    triangleAccelerationStructureSizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &triangleGeometryInfo, &triangleGeometryInfo.geometryCount, &triangleAccelerationStructureSizes);
 
-    BottomLevelAccelerationStructure triangleAccStruct = createBottomLevelAccelerationStructure(&triangleGeometryInfo, 1);
+    BottomLevelAccelerationStructure triangleAccStruct = createBottomLevelAccelerationStructure(triangleAccelerationStructureSizes);
 
-    std::vector<VkAccelerationStructureGeometryKHR> aabbGeometries;
-    std::vector<VkAccelerationStructureBuildOffsetInfoKHR> aabbBuildOffsets;
-    std::vector<BottomLevelAccelerationStructure> accStructs;
+    std::vector<VkAccelerationStructureGeometryKHR> aabbGeometries(m_aabbBuffers.size());
+    std::vector<VkAccelerationStructureBuildSizesInfoKHR> aabbAsBuildSizes(m_aabbBuffers.size());
+    std::vector<BottomLevelAccelerationStructure> accStructs(m_aabbBuffers.size());
     
     for (size_t index = 0; index < m_aabbBuffers.size(); ++index) {
-        VkAccelerationStructureGeometryKHR aabbGeometry = {};
-        aabbGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-        aabbGeometry.pNext = nullptr;
-        aabbGeometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-        aabbGeometry.geometry = {};
-        aabbGeometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
-        aabbGeometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
-        aabbGeometry.geometry.aabbs.data.deviceAddress = m_aabbBuffers[index].address;
-        aabbGeometry.flags = 0;
+        aabbGeometries[index] = {};
+        aabbGeometries[index].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        aabbGeometries[index].pNext = nullptr;
+        aabbGeometries[index].geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+        aabbGeometries[index].geometry = {};
+        aabbGeometries[index].geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+        aabbGeometries[index].geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
+        aabbGeometries[index].geometry.aabbs.data.deviceAddress = m_aabbBuffers[index].address;
+        aabbGeometries[index].flags = 0;
 
-        VkAccelerationStructureCreateGeometryTypeInfoKHR aabbGeometryInfo = {};
-        aabbGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR;
-        aabbGeometryInfo.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-        aabbGeometryInfo.maxPrimitiveCount = 1;
+        VkAccelerationStructureBuildGeometryInfoKHR aabbGeometryInfo = {};
+        aabbGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+        aabbGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        aabbGeometryInfo.geometryCount = 1;
+        aabbGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+        aabbGeometryInfo.pGeometries = &aabbGeometries[index];
 
-        aabbGeometries.push_back(aabbGeometry);
+        aabbAsBuildSizes[index] = {};
+        aabbAsBuildSizes[index].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &aabbGeometryInfo, &aabbGeometryInfo.geometryCount, &aabbAsBuildSizes[index]);
 
-        VkAccelerationStructureBuildOffsetInfoKHR aabbOffsetInfo = {};
-        aabbOffsetInfo.primitiveCount = 1;
-
-        aabbBuildOffsets.push_back(aabbOffsetInfo);
-
-        BottomLevelAccelerationStructure aabbAccStruct = createBottomLevelAccelerationStructure(&aabbGeometryInfo, 1);
-        accStructs.push_back(aabbAccStruct);
+        accStructs[index] = createBottomLevelAccelerationStructure(aabbAsBuildSizes[index]);
     }
 
     glm::uvec3 const kNumAabb = glm::uvec3(700, 1, 700);
@@ -725,7 +701,6 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     instances.push_back(triangleGeomInstance);
-
     
     float aabbTransform[3][4] =
     {
@@ -757,78 +732,46 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     topLevelGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
     topLevelGeometry.geometry.instances.data.deviceAddress = instanceBuffer.address;
 
-    VkAccelerationStructureCreateGeometryTypeInfoKHR topAccelerationStructureGeometryInfo = {};
-    topAccelerationStructureGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_GEOMETRY_TYPE_INFO_KHR;
-    topAccelerationStructureGeometryInfo.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    topAccelerationStructureGeometryInfo.maxPrimitiveCount = static_cast<uint32_t>(instances.size());
+    VkAccelerationStructureBuildGeometryInfoKHR topAccelerationStructureGeometryInfo = {};
+    topAccelerationStructureGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+    topAccelerationStructureGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+    topAccelerationStructureGeometryInfo.geometryCount = 1;
+    topAccelerationStructureGeometryInfo.pGeometries = &topLevelGeometry;
 
-    VkAccelerationStructureBuildOffsetInfoKHR topLevelBuildOffsetInfo = {};
-    topLevelBuildOffsetInfo.primitiveCount = static_cast<uint32_t>(instances.size());;
-    topLevelBuildOffsetInfo.primitiveOffset = 0;
-    topLevelBuildOffsetInfo.firstVertex = 0;
-    topLevelBuildOffsetInfo.transformOffset = 0;
+    uint32_t count = (uint32_t)instances.size();
+
+    VkAccelerationStructureBuildSizesInfoKHR topAccelerationStructureSizes;
+    topAccelerationStructureSizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &topAccelerationStructureGeometryInfo, &count, &topAccelerationStructureSizes);
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.size = topAccelerationStructureSizes.accelerationStructureSize;
+
+    VulkanBuffer topAccelerationBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, topAccelerationStructureSizes.accelerationStructureSize, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkAccelerationStructureCreateInfoKHR topAccInfo = {};
     topAccInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
     topAccInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    topAccInfo.maxGeometryCount = 1;
-    topAccInfo.pGeometryInfos = &topAccelerationStructureGeometryInfo;
-    topAccInfo.compactedSize = 0;
+    topAccInfo.buffer = topAccelerationBuffer.handle;
+    topAccInfo.offset = 0;
+    topAccInfo.size = topAccelerationStructureSizes.accelerationStructureSize;
 
     VkAccelerationStructureKHR topAccelerationStructure;
     VK_CHECK(vkCreateAccelerationStructureKHR(m_device, &topAccInfo, nullptr, &topAccelerationStructure));
 
-    VkAccelerationStructureMemoryRequirementsInfoKHR topAccMemReqInfo = {};
-    topAccMemReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR;
-    topAccMemReqInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_KHR;
-    topAccMemReqInfo.accelerationStructure = topAccelerationStructure;
-
-    VkMemoryRequirements2 topAccMemReq = {};
-    topAccMemReq.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &topAccMemReqInfo, &topAccMemReq);
-
-    VkMemoryAllocateInfo topAccMemAllocInfo = {};
-    topAccMemAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    topAccMemAllocInfo.allocationSize = topAccMemReq.memoryRequirements.size;
-    topAccMemAllocInfo.memoryTypeIndex = m_helper.getMemoryType(topAccMemReq.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkDeviceMemory topAccMemory;
-    vkAllocateMemory(m_device, &topAccMemAllocInfo, nullptr, &topAccMemory);
-
-    VkBindAccelerationStructureMemoryInfoKHR topAccBindInfo = {};
-    topAccBindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_KHR;
-    topAccBindInfo.accelerationStructure = topAccelerationStructure;
-    topAccBindInfo.memory = topAccMemory;
-
-    vkBindAccelerationStructureMemoryKHR(m_device, 1, &topAccBindInfo);
-
-    VkAccelerationStructureMemoryRequirementsInfoKHR accMemReqInfo = {};
-    accMemReqInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_KHR;
-    accMemReqInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_KHR;
-
-    accMemReqInfo.accelerationStructure = triangleAccStruct.handle;
-
-    VkMemoryRequirements2 accMemReq = {};
-    accMemReq.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &accMemReqInfo, &accMemReq);
-
-    VkDeviceSize bottomTriangleAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
+    VkDeviceSize bottomTriangleAccelerationStructureBufferSize = triangleAccelerationStructureSizes.buildScratchSize;
 
     VkDeviceSize bottomAabbAccelerationStructureBufferSize = 0;
 
     for (size_t index = 0; index < accStructs.size(); ++index) {
-        accMemReqInfo.accelerationStructure = accStructs[index].handle;
-        vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &accMemReqInfo, &accMemReq);
-
-        bottomAabbAccelerationStructureBufferSize = std::max(accMemReq.memoryRequirements.size, bottomAabbAccelerationStructureBufferSize);
+        bottomAabbAccelerationStructureBufferSize = std::max(aabbAsBuildSizes[index].buildScratchSize, bottomAabbAccelerationStructureBufferSize);
     }
 
-    accMemReqInfo.accelerationStructure = topAccelerationStructure;
-    vkGetAccelerationStructureMemoryRequirementsKHR(m_device, &accMemReqInfo, &accMemReq);
-    VkDeviceSize topAccelerationStructureBufferSize = accMemReq.memoryRequirements.size;
-
-    VkDeviceSize scratchBufferSize = std::max(std::max(bottomTriangleAccelerationStructureBufferSize, topAccelerationStructureBufferSize), bottomAabbAccelerationStructureBufferSize);
-    VulkanBuffer scratchBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, scratchBufferSize, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    VkDeviceSize scratchBufferSize = std::max(bottomTriangleAccelerationStructureBufferSize, bottomAabbAccelerationStructureBufferSize);
+    VulkanBuffer scratchBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, scratchBufferSize, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
     commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -837,85 +780,94 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     commandBufferAllocInfo.commandBufferCount = 1;
 
     VkCommandBuffer cmdBuffer;
-    vkAllocateCommandBuffers(m_device, &commandBufferAllocInfo, &cmdBuffer);
+    VK_CHECK(vkAllocateCommandBuffers(m_device, &commandBufferAllocInfo, &cmdBuffer));
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+    VK_CHECK(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
 
     VkMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 
-    {
-        std::vector<VkAccelerationStructureGeometryKHR> triangleGeometries({triangleGeometry});
-        const VkAccelerationStructureGeometryKHR* ppTriangleGeometries = triangleGeometries.data();
+    VkAccelerationStructureBuildRangeInfoKHR triangleBuildRangeInfo = {};
+    triangleBuildRangeInfo.primitiveCount = 2;
+    triangleBuildRangeInfo.primitiveOffset = 0;
+    triangleBuildRangeInfo.firstVertex = 0;
+    triangleBuildRangeInfo.transformOffset = 0;
 
+    {
         VkAccelerationStructureBuildGeometryInfoKHR asBuildInfo = {};
         asBuildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
         asBuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         asBuildInfo.geometryCount = 1;
-        asBuildInfo.geometryArrayOfPointers = VK_FALSE;
-        asBuildInfo.ppGeometries = &ppTriangleGeometries;
+        asBuildInfo.pGeometries = &triangleGeometry;
         asBuildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        asBuildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
         asBuildInfo.dstAccelerationStructure = triangleAccStruct.handle;
         asBuildInfo.scratchData.deviceAddress = scratchBuffer.address;
 
-        std::vector<VkAccelerationStructureBuildOffsetInfoKHR*> asOffsetInfos = { &triangleBuildOffsetInfo };
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR*> asOffsetInfos = { &triangleBuildRangeInfo };
 
         //VK_CHECK(vkBuildAccelerationStructureKHR(m_device, 1, &asBuildInfo, asOffsetInfos.data()));
-        vkCmdBuildAccelerationStructureKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
+        vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
     }
     
-    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     
+    VkAccelerationStructureBuildRangeInfoKHR aabbBuildRangeInfo = {};
+    aabbBuildRangeInfo.primitiveCount = 1;
+    aabbBuildRangeInfo.primitiveOffset = 0;
+    aabbBuildRangeInfo.firstVertex = 0;
+    aabbBuildRangeInfo.transformOffset = 0;
+
     for (size_t index = 0; index < accStructs.size(); ++index)
     {
-        std::vector<VkAccelerationStructureGeometryKHR> aabbGeometryList({aabbGeometries[index]});
-        const VkAccelerationStructureGeometryKHR* ppAabbGeometries = aabbGeometryList.data();
-
         VkAccelerationStructureBuildGeometryInfoKHR asBuildInfo = {};
         asBuildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
         asBuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        asBuildInfo.geometryArrayOfPointers = VK_FALSE;
         asBuildInfo.geometryCount = 1;//aabbGeometries.size();
-        asBuildInfo.ppGeometries = &ppAabbGeometries;
+        asBuildInfo.pGeometries = &aabbGeometries[index];
         asBuildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        asBuildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
         asBuildInfo.dstAccelerationStructure = accStructs[index].handle;
         asBuildInfo.scratchData.deviceAddress = scratchBuffer.address;
 
-        std::vector<VkAccelerationStructureBuildOffsetInfoKHR*> asOffsetInfos = { &aabbBuildOffsets[index] };
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR*> asOffsetInfos = { &aabbBuildRangeInfo };
 
         //VK_CHECK(vkBuildAccelerationStructureKHR(m_device, 1, &asBuildInfo, asOffsetInfos.data()));
-        vkCmdBuildAccelerationStructureKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
-        
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+        vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
+
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     }
 
-    {
-        std::vector<VkAccelerationStructureGeometryKHR> topLevelGeometries({topLevelGeometry});
-        const VkAccelerationStructureGeometryKHR* ppTopLevelGeometries = topLevelGeometries.data();
+    VkAccelerationStructureBuildRangeInfoKHR topLevelBuildRangeInfo = {};
+    topLevelBuildRangeInfo.primitiveCount = static_cast<uint32_t>(instances.size());
+    topLevelBuildRangeInfo.primitiveOffset = 0;
+    topLevelBuildRangeInfo.firstVertex = 0;
+    topLevelBuildRangeInfo.transformOffset = 0;
 
+    {
         VkAccelerationStructureBuildGeometryInfoKHR asBuildInfo = {};
         asBuildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
         asBuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-        asBuildInfo.geometryArrayOfPointers = VK_FALSE;
         asBuildInfo.geometryCount = 1;
-        asBuildInfo.ppGeometries = &ppTopLevelGeometries;
+        asBuildInfo.pGeometries = &topLevelGeometry;
         asBuildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        asBuildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
         asBuildInfo.dstAccelerationStructure = topAccelerationStructure;
         asBuildInfo.scratchData.deviceAddress = scratchBuffer.address;
 
-        std::vector<VkAccelerationStructureBuildOffsetInfoKHR*> asOffsetInfos = { &topLevelBuildOffsetInfo };
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR*> asOffsetInfos = { &topLevelBuildRangeInfo };
 
         //VK_CHECK(vkBuildAccelerationStructureKHR(m_device, 1, &asBuildInfo, asOffsetInfos.data()));
-        vkCmdBuildAccelerationStructureKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
+        vkCmdBuildAccelerationStructuresKHR(cmdBuffer, 1, &asBuildInfo, asOffsetInfos.data());
     }
 
-    vkEndCommandBuffer(cmdBuffer);
+    VK_CHECK(vkEndCommandBuffer(cmdBuffer));
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -925,10 +877,10 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     VkFence fence = VK_NULL_HANDLE;
     VkFenceCreateInfo fenceInfo = {};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    vkCreateFence(m_device, &fenceInfo, nullptr, &fence);
+    VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &fence));
 
-    vkQueueSubmit(m_queue, 1, &submitInfo, fence);
-    vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
+    VK_CHECK(vkQueueSubmit(m_queue, 1, &submitInfo, fence));
+    VK_CHECK(vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX));
 
     vkDestroyFence(m_device, fence, nullptr);
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmdBuffer);
@@ -1059,9 +1011,9 @@ void CRayTracing::buildPlaneGeometry() {
         { glm::vec3(0.0f, 0.0f, 1.0f) },
     };
 
-    m_indexBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(indices), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    m_indexBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, sizeof(indices), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     m_helper.copyToBuffer(m_indexBuffer, indices, sizeof(indices));
-    m_vertexBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(vertices), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    m_vertexBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, sizeof(vertices), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     m_helper.copyToBuffer(m_vertexBuffer, vertices, sizeof(vertices));
 
     std::vector<uint32_t> faces;

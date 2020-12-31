@@ -200,7 +200,8 @@ int main() {
     //activatedDeviceExtensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
-    activatedDeviceExtensions.push_back(VK_KHR_RAY_TRACING_EXTENSION_NAME);
+    activatedDeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    activatedDeviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
     activatedDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     VkDevice device;
@@ -208,12 +209,16 @@ int main() {
    // VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptorIndexingFeatures = {};
    // descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
 
-    VkPhysicalDeviceRayTracingFeaturesKHR raytracingFeatures = {};
-    raytracingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_FEATURES_KHR;
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures = {};
+    accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracingPipelineFeatures = {};
+    raytracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    raytracingPipelineFeatures.pNext = &accelerationStructureFeatures;
 
     VkPhysicalDeviceVulkan12Features vulkan12Features = {};
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12Features.pNext = &raytracingFeatures;
+    vulkan12Features.pNext = &raytracingPipelineFeatures;
 
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -283,16 +288,20 @@ int main() {
     VkDescriptorPool descriptorPool;
     vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool);
 
-    VkPhysicalDeviceRayTracingPropertiesKHR raytracingProperties = {};
-    raytracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_KHR;
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR accelerationStructureProperties = {};
+    accelerationStructureProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR raytracingPipelineProperties = {};
+    raytracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+    raytracingPipelineProperties.pNext = &accelerationStructureProperties;
 
     VkPhysicalDeviceProperties2 props = {};
     props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    props.pNext = &raytracingProperties;
+    props.pNext = &raytracingPipelineProperties;
 
     vkGetPhysicalDeviceProperties2(gpu, &props);
 
-    CRayTracing rayTracing(instance, device, gpu, queue, commandPool, raytracingProperties);
+    CRayTracing rayTracing(instance, device, gpu, queue, commandPool, raytracingPipelineProperties);
     rayTracing.init();
     rayTracing.initScene();
 
@@ -656,25 +665,22 @@ int main() {
     vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, commandBuffers.data());
 
     VulkanBuffer raygenShaderGroup = rayTracing.getRayGenShaderGroups();
-    VkStridedBufferRegionKHR raygenStridedBufferRegion = {};
-    raygenStridedBufferRegion.buffer = raygenShaderGroup.handle;
-    raygenStridedBufferRegion.size = raygenShaderGroup.size;
-    raygenStridedBufferRegion.offset = 0;
+    VkStridedDeviceAddressRegionKHR raygenStridedBufferRegion = {};
+    raygenStridedBufferRegion.deviceAddress = raygenShaderGroup.address;
+    raygenStridedBufferRegion.stride = raytracingPipelineProperties.shaderGroupHandleSize;
+    raygenStridedBufferRegion.size = raytracingPipelineProperties.shaderGroupHandleSize;
 
-    VkStridedBufferRegionKHR missStridedBufferRegion = {};
-    missStridedBufferRegion.buffer = raygenShaderGroup.handle;
-    missStridedBufferRegion.size = raygenShaderGroup.size;
-    missStridedBufferRegion.offset = raytracingProperties.shaderGroupHandleSize;
-    missStridedBufferRegion.stride = raytracingProperties.shaderGroupHandleSize;
+    VkStridedDeviceAddressRegionKHR missStridedBufferRegion = {};
+    missStridedBufferRegion.deviceAddress = raygenShaderGroup.address + raytracingPipelineProperties.shaderGroupHandleSize;
+    missStridedBufferRegion.stride = raytracingPipelineProperties.shaderGroupHandleSize;
+    missStridedBufferRegion.size = raytracingPipelineProperties.shaderGroupHandleSize * 2;
 
-    VkStridedBufferRegionKHR hitStridedBufferRegion = {};
-    hitStridedBufferRegion.buffer = raygenShaderGroup.handle;
-    hitStridedBufferRegion.size = raygenShaderGroup.size;
-    hitStridedBufferRegion.offset = 3 * raytracingProperties.shaderGroupHandleSize;
-    hitStridedBufferRegion.stride = (raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
+    VkStridedDeviceAddressRegionKHR hitStridedBufferRegion = {};
+    hitStridedBufferRegion.deviceAddress = raygenShaderGroup.address + (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
+    hitStridedBufferRegion.stride = (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
+    hitStridedBufferRegion.size = (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * 10;
 
-    VkStridedBufferRegionKHR callableStridedBufferRegion = {};
-    callableStridedBufferRegion.buffer = VK_NULL_HANDLE;
+    VkStridedDeviceAddressRegionKHR callableStridedBufferRegion = {};
 
     for (size_t commandBufferIndex = 0; commandBufferIndex < commandBuffers.size(); ++commandBufferIndex) {
 
