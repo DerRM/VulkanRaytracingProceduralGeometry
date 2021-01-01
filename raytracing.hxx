@@ -60,7 +60,7 @@ private:
     void createHitShaderTable();
 
 private:
-	VkInstance m_instance;
+  VkInstance m_instance;
     VkDevice m_device;
     VkPhysicalDevice m_gpu;
     VkQueue m_queue;

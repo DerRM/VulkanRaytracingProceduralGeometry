@@ -6,7 +6,7 @@
 
 CRayTracing::CRayTracing(VkInstance instance, VkDevice device, VkPhysicalDevice gpu, VkQueue queue, VkCommandPool commandPool, VkPhysicalDeviceRayTracingPipelinePropertiesKHR const& raytracingProperties)
     : m_instance(instance)
-	, m_device(device)
+  , m_device(device)
     , m_gpu(gpu)
     , m_queue(queue)
     , m_commandPool(commandPool)
@@ -145,17 +145,17 @@ void CRayTracing::updateAABBPrimitiveBuffer() {
 
 void CRayTracing::createShader(VkShaderStageFlagBits type, std::string const& shader_source) {
 
-	uint8_t* memory = nullptr;
+  uint8_t* memory = nullptr;
 
-	std::streampos size = 0;
-	std::ifstream file(shader_source, std::ios::in | std::ios::binary | std::ios::ate);
-	if (file.is_open()) {
-		size = file.tellg();
-		memory = new uint8_t[size];
-		file.seekg(0, std::ios::beg);
-		file.read(reinterpret_cast<char*>(memory), size);
-		file.close();
-	}
+  std::streampos size = 0;
+  std::ifstream file(shader_source, std::ios::in | std::ios::binary | std::ios::ate);
+  if (file.is_open()) {
+    size = file.tellg();
+    memory = new uint8_t[size];
+    file.seekg(0, std::ios::beg);
+    file.read(reinterpret_cast<char*>(memory), size);
+    file.close();
+  }
 
 
     VkShaderModuleCreateInfo shaderInfo = {};
@@ -169,7 +169,7 @@ void CRayTracing::createShader(VkShaderStageFlagBits type, std::string const& sh
         printf("could not create shader module\n");
     }
 
-	delete[] memory;
+  delete[] memory;
 
     VkPipelineShaderStageCreateInfo shaderStageInfo = {};
     shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -235,9 +235,13 @@ VulkanBuffer CRayTracing::getHitShaderGroups() {
 }
 
 void CRayTracing::createRayGenShaderTable() {
+    uint32_t raygenAlignment = CVulkanHelper::alignTo(m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), m_raytracingPipelineProperties.shaderGroupBaseAlignment);
+    uint32_t missAlignment = CVulkanHelper::alignTo(m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size(), m_raytracingPipelineProperties.shaderGroupBaseAlignment);
+
     VkDeviceSize bufferSize =
-            m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size()
-            + m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size()
+            raygenAlignment
+            + missAlignment
+            // we don't need to align the last part as only the base addresses must be aligned and not the buffer itself
             + (m_raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_aabbs.size();
     m_raygenShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -245,9 +249,9 @@ void CRayTracing::createRayGenShaderTable() {
     vkMapMemory(m_device, m_raygenShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
     uint8_t* mappedMemory = (uint8_t*)data;
     VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, 0, static_cast<uint32_t>(m_rayGenShaderGroups.size()), m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size(), mappedMemory));
-    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize * m_rayGenShaderGroups.size();
+    mappedMemory += raygenAlignment;
     VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size()), static_cast<uint32_t>(m_missShaderGroups.size()), m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size(), mappedMemory));
-    mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size();
+    mappedMemory += missAlignment;
     VK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(m_device, m_raytracingPipeline, static_cast<uint32_t>(m_rayGenShaderGroups.size() + m_missShaderGroups.size()), 1, m_raytracingPipelineProperties.shaderGroupHandleSize, mappedMemory));
     mappedMemory += m_raytracingPipelineProperties.shaderGroupHandleSize;
     memcpy(mappedMemory, &m_planeMaterialCB, sizeof(PrimitiveConstantBuffer));

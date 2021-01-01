@@ -22,6 +22,7 @@
 
 #define WIDTH 1280
 #define HEIGHT 720
+#define VSYNC
 
 uint32_t getMemoryType(VkPhysicalDeviceMemoryProperties& gpuMemProps, VkMemoryRequirements& memoryRequirements, VkMemoryPropertyFlags memoryProperties) {
     uint32_t memoryType = 0;
@@ -398,25 +399,6 @@ int main() {
 
     VkPipeline raytracingPipeline = rayTracing.createPipeline(pipelineLayout);
 
-    /*
-    VkDeviceSize hitShaderAndDataSize = raytracingProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer);
-    VkDeviceSize raygenAndMissSize = raytracingProperties.shaderGroupHandleSize * 2;
-
-    VulkanBuffer groupBuffer = helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, hitShaderAndDataSize + raygenAndMissSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    void* data = nullptr;
-    vkMapMemory(device, groupBuffer.memory, 0, raytracingProperties.shaderGroupHandleSize * shaderGroups.size(), 0, &data);
-    uint8_t* mappedMemory = (uint8_t*)data;
-    vkGetRayTracingShaderGroupHandles(device, raytracingPipeline, 0, 1, raytracingProperties.shaderGroupHandleSize, mappedMemory);
-    mappedMemory += raytracingProperties.shaderGroupHandleSize;
-    vkGetRayTracingShaderGroupHandles(device, raytracingPipeline, 1, 1, hitShaderAndDataSize, mappedMemory);
-    mappedMemory += raytracingProperties.shaderGroupHandleSize;
-    memcpy(mappedMemory, &rayTracing.getPlaneMaterialBuffer(), sizeof(PrimitiveConstantBuffer));
-    mappedMemory += sizeof(PrimitiveConstantBuffer);
-    vkGetRayTracingShaderGroupHandles(device, raytracingPipeline, 2, 1, raytracingProperties.shaderGroupHandleSize, mappedMemory);
-    vkUnmapMemory(device, groupBuffer.memory);
-*/
-
     const char* applicationName = "Vulkan Raytracing Example";
 
     VkSurfaceKHR surface;
@@ -444,9 +426,9 @@ int main() {
     RegisterClassEx(&windowClass);
 
     RECT winRect = { 0, 0, WIDTH, HEIGHT };
-    AdjustWindowRect(&winRect, WS_OVERLAPPEDWINDOW, FALSE);
+    AdjustWindowRect(&winRect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE);
 
-    HWND hWnd = CreateWindowEx(dwExStyle, applicationName, applicationName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, winRect.right - winRect.left, winRect.bottom - winRect.top, NULL, NULL, hInstance, NULL);
+    HWND hWnd = CreateWindowEx(dwExStyle, applicationName, applicationName, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, 0, winRect.right - winRect.left, winRect.bottom - winRect.top, NULL, NULL, hInstance, NULL);
     //SetWindowLongPtr(m_hWnd, GWLP_USERDATA, (LONG_PTR)this);
     ShowWindow(hWnd, SW_SHOW);
     SetForegroundWindow(hWnd);
@@ -525,6 +507,7 @@ int main() {
 
     VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;;
     
+#ifndef VSYNC
     for (size_t presentModeIndex = 0; presentModeIndex < presentModes.size(); ++presentModeIndex) {
         if (presentModes[presentModeIndex] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = presentModes[presentModeIndex];
@@ -534,6 +517,7 @@ int main() {
             presentMode = presentModes[presentModeIndex];
         }
     }
+#endif
     
     VkExtent2D swapExtent;
 
@@ -669,14 +653,18 @@ int main() {
     raygenStridedBufferRegion.deviceAddress = raygenShaderGroup.address;
     raygenStridedBufferRegion.stride = raytracingPipelineProperties.shaderGroupHandleSize;
     raygenStridedBufferRegion.size = raytracingPipelineProperties.shaderGroupHandleSize;
+    
+    uint32_t raygenAlignment = CVulkanHelper::alignTo(raytracingPipelineProperties.shaderGroupHandleSize, raytracingPipelineProperties.shaderGroupBaseAlignment);
 
     VkStridedDeviceAddressRegionKHR missStridedBufferRegion = {};
-    missStridedBufferRegion.deviceAddress = raygenShaderGroup.address + raytracingPipelineProperties.shaderGroupHandleSize;
+    missStridedBufferRegion.deviceAddress = raygenShaderGroup.address + raygenAlignment;
     missStridedBufferRegion.stride = raytracingPipelineProperties.shaderGroupHandleSize;
     missStridedBufferRegion.size = raytracingPipelineProperties.shaderGroupHandleSize * 2;
 
+    uint32_t missAlignment = CVulkanHelper::alignTo(raytracingPipelineProperties.shaderGroupHandleSize * 2, raytracingPipelineProperties.shaderGroupBaseAlignment);
+
     VkStridedDeviceAddressRegionKHR hitStridedBufferRegion = {};
-    hitStridedBufferRegion.deviceAddress = raygenShaderGroup.address + (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
+    hitStridedBufferRegion.deviceAddress = raygenShaderGroup.address + raygenAlignment + missAlignment;
     hitStridedBufferRegion.stride = (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer));
     hitStridedBufferRegion.size = (raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * 10;
 
