@@ -723,7 +723,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     }
     
     uint32_t instanceBufferSize = static_cast<uint32_t>(sizeof(VkAccelerationStructureInstanceKHR) * instances.size());
-    VulkanBuffer instanceBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, instanceBufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    VulkanBuffer instanceBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT| VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, instanceBufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     m_helper.copyToBuffer(instanceBuffer, instances.data(), instanceBufferSize);
 
     VkAccelerationStructureGeometryKHR topLevelGeometry = {};
@@ -995,7 +995,7 @@ void CRayTracing::buildProceduralGeometryAABBs() {
         }
 
         for (size_t index = 0; index < m_aabbs.size(); ++index) {
-            VulkanBuffer aabbBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, sizeof(VkAabbPositionsKHR), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VulkanBuffer aabbBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, sizeof(VkAabbPositionsKHR), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             m_helper.copyToBuffer(aabbBuffer, &m_aabbs[index], sizeof(VkAabbPositionsKHR));
             m_aabbBuffers.push_back(aabbBuffer);
         }
