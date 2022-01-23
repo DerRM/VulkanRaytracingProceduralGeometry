@@ -1,7 +1,7 @@
 # Vulkan Raytracing Procedural Geometry Sample
 
 Vulkan port of the D3D12 Procedural Geometry Demo [WIP]
-[![Build Status](https://travis-ci.com/DerRM/VulkanRaytracingProceduralGeometry.svg?token=v5cpNcBgmS85HkaqVExn&branch=master)](https://travis-ci.com/DerRM/VulkanRaytracingProceduralGeometry)
+[![Build Status](https://app.travis-ci.com/DerRM/VulkanRaytracingProceduralGeometry.svg?branch=master)](https://app.travis-ci.com/DerRM/VulkanRaytracingProceduralGeometry)
 
 This sample uses the official VK_KHR_ray_tracing_pipeline and VK_KHR_acceleration_structure extensions. It was ported from the before adapted sample for [VK_KHR_ray_tracing](https://github.com/DerRM/VulkanRaytracingProceduralGeometry/tree/VK_KHR_ray_tracing).
 
