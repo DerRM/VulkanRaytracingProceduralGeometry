@@ -820,6 +820,10 @@ int main() {
 #endif
         rayTracing.update();
 
+        VkFence fence = fences[frameIndex];
+        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &fence);
+
         uint32_t imageIndex;
         vkAcquireNextImageKHR(device, swapchain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
 
@@ -834,10 +838,6 @@ int main() {
         submitInfo.pCommandBuffers = &commandBuffers[frameIndex];
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &renderFinishedSemaphores[frameIndex];
-
-        VkFence fence = fences[frameIndex];
-        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-        vkResetFences(device, 1, &fence);
 
         vkQueueSubmit(queue, 1, &submitInfo, fence);
 

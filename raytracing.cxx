@@ -204,7 +204,7 @@ VkPipeline CRayTracing::createPipeline(VkPipelineLayout pipelineLayout) {
 
     VkRayTracingPipelineCreateInfoKHR raytracingPipelineInfo = {};
     raytracingPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-    raytracingPipelineInfo.maxPipelineRayRecursionDepth = 3;
+    raytracingPipelineInfo.maxPipelineRayRecursionDepth = 1;
     raytracingPipelineInfo.stageCount = static_cast<uint32_t>(m_shaderStages.size());
     raytracingPipelineInfo.pStages = m_shaderStages.data();
     raytracingPipelineInfo.groupCount = static_cast<uint32_t>(m_shaderGroups.size());
@@ -243,7 +243,7 @@ void CRayTracing::createRayGenShaderTable() {
             + missAlignment
             // we don't need to align the last part as only the base addresses must be aligned and not the buffer itself
             + (m_raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_aabbs.size();
-    m_raygenShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    m_raygenShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     void* data = nullptr;
     vkMapMemory(m_device, m_raygenShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
@@ -295,7 +295,7 @@ void CRayTracing::createRayGenShaderTable() {
 
 void CRayTracing::createMissShaderTable() {
     VkDeviceSize bufferSize = m_raytracingPipelineProperties.shaderGroupHandleSize * m_missShaderGroups.size();
-    m_missShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    m_missShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     void* data = nullptr;
     vkMapMemory(m_device, m_missShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
@@ -306,7 +306,7 @@ void CRayTracing::createMissShaderTable() {
 
 void CRayTracing::createHitShaderTable() {
     VkDeviceSize bufferSize = (m_raytracingPipelineProperties.shaderGroupHandleSize + sizeof(PrimitiveConstantBuffer) + sizeof(PrimitiveInstanceConstantBuffer)) * m_hitShaderGroups.size();
-    m_hitShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    m_hitShaderGroupBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, bufferSize, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
     void* data = nullptr;
     vkMapMemory(m_device, m_hitShaderGroupBuffer.memory, 0, bufferSize, 0, &data);
@@ -637,7 +637,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     triangleGeometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     triangleGeometry.geometry.triangles.indexData.deviceAddress = m_indexBuffer.address;
     triangleGeometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT16;
-    triangleGeometry.geometry.triangles.maxVertex = 4;
+    triangleGeometry.geometry.triangles.maxVertex = 3;
 
     VkAccelerationStructureBuildGeometryInfoKHR triangleGeometryInfo = {};
     triangleGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -646,9 +646,11 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     triangleGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     triangleGeometryInfo.pGeometries = &triangleGeometry;
 
-    VkAccelerationStructureBuildSizesInfoKHR triangleAccelerationStructureSizes;
+    uint32_t numTriangles = 2;
+
+    VkAccelerationStructureBuildSizesInfoKHR triangleAccelerationStructureSizes = {};
     triangleAccelerationStructureSizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &triangleGeometryInfo, &triangleGeometryInfo.geometryCount, &triangleAccelerationStructureSizes);
+    vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &triangleGeometryInfo, &numTriangles, &triangleAccelerationStructureSizes);
 
     BottomLevelAccelerationStructure triangleAccStruct = createBottomLevelAccelerationStructure(triangleAccelerationStructureSizes);
 
@@ -744,7 +746,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
 
     uint32_t count = (uint32_t)instances.size();
 
-    VkAccelerationStructureBuildSizesInfoKHR topAccelerationStructureSizes;
+    VkAccelerationStructureBuildSizesInfoKHR topAccelerationStructureSizes = {};
     topAccelerationStructureSizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
     vkGetAccelerationStructureBuildSizesKHR(m_device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &topAccelerationStructureGeometryInfo, &count, &topAccelerationStructureSizes);
 
@@ -775,6 +777,7 @@ void CRayTracing::buildTriangleAccelerationStructure() {
     }
 
     VkDeviceSize scratchBufferSize = std::max(bottomTriangleAccelerationStructureBufferSize, bottomAabbAccelerationStructureBufferSize);
+    scratchBufferSize = std::max(topAccelerationStructureSizes.buildScratchSize, scratchBufferSize);
     VulkanBuffer scratchBuffer = m_helper.createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, scratchBufferSize, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkCommandBufferAllocateInfo commandBufferAllocInfo = {};
